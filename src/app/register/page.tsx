@@ -1,87 +1,41 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { useRegistration } from "@/hooks/useRegistration";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/utils/supabase/client";
+import { User } from "@supabase/supabase-js";
 
 export default function RegisterPage() {
-    const [formData, setFormData] = useState({
-        username: "",
-        email: "",
-        password: "",
-        confirmPassword: "",
-    });
-    const [errors, setErrors] = useState<{ [key: string]: string }>({});
-    const [isLoading, setIsLoading] = useState(false);
+    const [user, setUser] = useState<User | null>(null);
+    const [userLoading, setUserLoading] = useState(true);
+    const { formData, errors, isLoading, handleChange, handleSubmit } =
+        useRegistration();
     const router = useRouter();
 
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const { name, value } = e.target;
-        setFormData((prev) => ({
-            ...prev,
-            [name]: value,
-        }));
-        // Clear error when user starts typing
-        if (errors[name]) {
-            setErrors((prev) => ({
-                ...prev,
-                [name]: "",
-            }));
-        }
-    };
+    useEffect(() => {
+        const supabase = createClient();
+        supabase.auth.getUser().then(({ data: { user } }) => {
+            setUser(user);
+            setUserLoading(false);
+            if (user) {
+                router.push("/dashboard");
+            }
+        });
+    }, [router]);
 
-    const validateForm = () => {
-        const newErrors: { [key: string]: string } = {};
+    if (userLoading) {
+        return (
+            <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            </div>
+        );
+    }
 
-        if (!formData.username.trim()) {
-            newErrors.username = "Username is required";
-        } else if (formData.username.length < 3) {
-            newErrors.username = "Username must be at least 3 characters";
-        }
-
-        if (!formData.email.trim()) {
-            newErrors.email = "Email is required";
-        } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
-            newErrors.email = "Please enter a valid email";
-        }
-
-        if (!formData.password) {
-            newErrors.password = "Password is required";
-        } else if (formData.password.length < 6) {
-            newErrors.password = "Password must be at least 6 characters";
-        }
-
-        if (formData.password !== formData.confirmPassword) {
-            newErrors.confirmPassword = "Passwords do not match";
-        }
-
-        setErrors(newErrors);
-        return Object.keys(newErrors).length === 0;
-    };
-
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
-
-        if (!validateForm()) return;
-
-        setIsLoading(true);
-
-        // Simulate API call
-        setTimeout(() => {
-            // Store user data in localStorage for demo purposes
-            localStorage.setItem(
-                "user",
-                JSON.stringify({
-                    username: formData.username,
-                    email: formData.email,
-                    isLoggedIn: true,
-                }),
-            );
-
-            setIsLoading(false);
-            router.push("/dashboard");
-        }, 1500);
-    };
+    if (user) {
+        return null;
+    }
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
@@ -91,7 +45,7 @@ export default function RegisterPage() {
                         <h2 className="text-3xl font-bold text-gray-900 mb-2">
                             Create Account
                         </h2>
-                        <p className="text-gray-600">
+                        <p className="text-gray-800">
                             Join us today and get started
                         </p>
                     </div>
@@ -100,8 +54,36 @@ export default function RegisterPage() {
                         <div className="space-y-4">
                             <div>
                                 <label
+                                    htmlFor="displayName"
+                                    className="block text-sm font-medium text-gray-900 mb-1"
+                                >
+                                    Display Name
+                                </label>
+                                <input
+                                    id="displayName"
+                                    name="displayName"
+                                    type="text"
+                                    required
+                                    value={formData.displayName}
+                                    onChange={handleChange}
+                                    className={`w-full px-4 py-3 border text-black rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
+                                        errors.displayName
+                                            ? "border-red-300"
+                                            : "border-gray-300"
+                                    }`}
+                                    placeholder="Enter your display name"
+                                />
+                                {errors.displayName && (
+                                    <p className="mt-1 text-sm text-red-600">
+                                        {errors.displayName}
+                                    </p>
+                                )}
+                            </div>
+
+                            <div>
+                                <label
                                     htmlFor="username"
-                                    className="block text-sm font-medium text-gray-700 mb-1"
+                                    className="block text-sm font-medium text-gray-900 mb-1"
                                 >
                                     Username
                                 </label>
@@ -112,7 +94,7 @@ export default function RegisterPage() {
                                     required
                                     value={formData.username}
                                     onChange={handleChange}
-                                    className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
+                                    className={`w-full px-4 py-3 border text-black rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
                                         errors.username
                                             ? "border-red-300"
                                             : "border-gray-300"
@@ -129,7 +111,7 @@ export default function RegisterPage() {
                             <div>
                                 <label
                                     htmlFor="email"
-                                    className="block text-sm font-medium text-gray-700 mb-1"
+                                    className="block text-sm font-medium text-gray-900 mb-1"
                                 >
                                     Email Address
                                 </label>
@@ -140,7 +122,7 @@ export default function RegisterPage() {
                                     required
                                     value={formData.email}
                                     onChange={handleChange}
-                                    className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
+                                    className={`w-full px-4 py-3 border text-black rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
                                         errors.email
                                             ? "border-red-300"
                                             : "border-gray-300"
@@ -157,7 +139,7 @@ export default function RegisterPage() {
                             <div>
                                 <label
                                     htmlFor="password"
-                                    className="block text-sm font-medium text-gray-700 mb-1"
+                                    className="block text-sm font-medium text-gray-900 mb-1"
                                 >
                                     Password
                                 </label>
@@ -168,7 +150,7 @@ export default function RegisterPage() {
                                     required
                                     value={formData.password}
                                     onChange={handleChange}
-                                    className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
+                                    className={`w-full px-4 py-3 border text-black rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
                                         errors.password
                                             ? "border-red-300"
                                             : "border-gray-300"
@@ -185,7 +167,7 @@ export default function RegisterPage() {
                             <div>
                                 <label
                                     htmlFor="confirmPassword"
-                                    className="block text-sm font-medium text-gray-700 mb-1"
+                                    className="block text-sm font-medium text-gray-900 mb-1"
                                 >
                                     Confirm Password
                                 </label>
@@ -196,7 +178,7 @@ export default function RegisterPage() {
                                     required
                                     value={formData.confirmPassword}
                                     onChange={handleChange}
-                                    className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
+                                    className={`w-full px-4 py-3 border text-black rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
                                         errors.confirmPassword
                                             ? "border-red-300"
                                             : "border-gray-300"
@@ -210,6 +192,12 @@ export default function RegisterPage() {
                                 )}
                             </div>
                         </div>
+
+                        {errors.general && (
+                            <p className="mt-2 text-sm text-red-600 text-center">
+                                {errors.general}
+                            </p>
+                        )}
 
                         <button
                             type="submit"
@@ -228,7 +216,7 @@ export default function RegisterPage() {
                     </form>
 
                     <div className="mt-6 text-center">
-                        <p className="text-gray-600">
+                        <p className="text-gray-800">
                             Already have an account?{" "}
                             <Link
                                 href="/login"
