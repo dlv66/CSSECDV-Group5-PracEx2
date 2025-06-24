@@ -1,62 +1,19 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { createClient } from "@/lib/utils/supabase/client";
-import { Tables } from "../../../database.types";
-import { User } from "@supabase/supabase-js";
 
-// Type for your users table row
-export type DatabaseUser = Tables<"users">;
+const user = {
+    username: "johndoe",
+    name: "John Doe",
+    email: "john.doe@example.com",
+};
 
 export default function DashboardPage() {
     const router = useRouter();
-    const [user, setUser] = useState<User | null>(null);
-    const [profile, setProfile] = useState<DatabaseUser | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-
-    useEffect(() => {
-        const supabase = createClient();
-        async function fetchUserAndProfile() {
-            setIsLoading(true);
-            const {
-                data: { user },
-            } = await supabase.auth.getUser();
-            setUser(user);
-            if (user) {
-                const { data, error } = await supabase
-                    .from("users")
-                    .select("*")
-                    .eq("user_id", user.id)
-                    .single();
-                setProfile(data || null);
-                if (error) {
-                    console.error("Error fetching user profile:", error);
-                }
-            } else {
-                setProfile(null);
-            }
-            setIsLoading(false);
-        }
-        fetchUserAndProfile();
-    }, []);
 
     const handleLogout = () => {
         router.push("/login");
     };
-
-    if (isLoading) {
-        return (
-            <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100 flex items-center justify-center">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
-            </div>
-        );
-    }
-
-    if (!user || !profile) {
-        router.push("/login");
-        return null;
-    }
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100">
@@ -71,7 +28,7 @@ export default function DashboardPage() {
                         </div>
                         <div className="flex items-center space-x-4">
                             <span className="text-gray-700">
-                                Welcome, {profile.display_name}!
+                                Welcome, {user.name}!
                             </span>
                             <button
                                 onClick={handleLogout}
@@ -92,14 +49,14 @@ export default function DashboardPage() {
                         <div className="flex items-center space-x-4 mb-4">
                             <div className="w-12 h-12 bg-purple-600 rounded-full flex items-center justify-center">
                                 <span className="text-white font-bold text-lg">
-                                    {profile.username.charAt(0).toUpperCase()}
+                                    {user.username.charAt(0).toUpperCase()}
                                 </span>
                             </div>
                             <div>
                                 <h3 className="text-lg font-semibold text-gray-900">
-                                    {profile.username}
+                                    {user.username}
                                 </h3>
-                                <p className="text-gray-600">{profile.email}</p>
+                                <p className="text-gray-600">{user.email}</p>
                             </div>
                         </div>
                         <div className="border-t pt-4">

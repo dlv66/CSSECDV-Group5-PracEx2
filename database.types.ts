@@ -15,10 +15,10 @@ export type Database = {
           display_name: string
           email: string
           hash_algorithm: string | null
+          id: number
           last_login: string | null
           password_hash: string
           updated_at: string | null
-          user_id: string
           username: string
         }
         Insert: {
@@ -26,10 +26,10 @@ export type Database = {
           display_name: string
           email: string
           hash_algorithm?: string | null
+          id?: number
           last_login?: string | null
           password_hash: string
           updated_at?: string | null
-          user_id: string
           username: string
         }
         Update: {
@@ -37,10 +37,10 @@ export type Database = {
           display_name?: string
           email?: string
           hash_algorithm?: string | null
+          id?: number
           last_login?: string | null
           password_hash?: string
           updated_at?: string | null
-          user_id?: string
           username?: string
         }
         Relationships: []
