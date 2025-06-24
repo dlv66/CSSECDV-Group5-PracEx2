@@ -7,6 +7,9 @@ export default function LogoutPage() {
     const router = useRouter();
 
     useEffect(() => {
+        // Call the logout API to clear the cookie
+        fetch("/api/logout", { method: "POST" });
+
         // Clear user data from localStorage
         localStorage.removeItem("user");
 

@@ -1,19 +1,39 @@
-"use client";
+import { cookies } from "next/headers";
+import jwt from "jsonwebtoken";
+import { redirect } from "next/navigation";
 
-import { useRouter } from "next/navigation";
+const JWT_SECRET = process.env.JWT_SECRET || "dev_secret";
 
-const user = {
-    username: "johndoe",
-    name: "John Doe",
-    email: "john.doe@example.com",
-};
+interface JwtPayload {
+    id: string;
+    username: string;
+    email: string;
+    iat?: number;
+    exp?: number;
+}
 
-export default function DashboardPage() {
-    const router = useRouter();
-
-    const handleLogout = () => {
-        router.push("/login");
-    };
+export default async function DashboardPage() {
+    const cookieStore = await cookies();
+    const token = cookieStore.get("auth_token")?.value;
+    let user: JwtPayload | null = null;
+    if (token) {
+        try {
+            const payload = jwt.verify(token, JWT_SECRET);
+            if (
+                typeof payload === "object" &&
+                "username" in payload &&
+                "email" in payload &&
+                "id" in payload
+            ) {
+                user = payload as JwtPayload;
+            }
+        } catch {
+            // Invalid token
+        }
+    }
+    if (!user) {
+        redirect("/login");
+    }
 
     return (
         <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100">
@@ -28,14 +48,14 @@ export default function DashboardPage() {
                         </div>
                         <div className="flex items-center space-x-4">
                             <span className="text-gray-700">
-                                Welcome, {user.name}!
+                                Welcome, {user.username}!
                             </span>
-                            <button
-                                onClick={handleLogout}
+                            <a
+                                href="/logout"
                                 className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
                             >
                                 Logout
-                            </button>
+                            </a>
                         </div>
                     </div>
                 </div>

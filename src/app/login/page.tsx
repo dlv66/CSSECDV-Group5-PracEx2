@@ -50,21 +50,30 @@ export default function LoginPage() {
 
         setIsLoading(true);
 
-        // Simulate API call
-        setTimeout(() => {
-            // For demo purposes, accept any login with sample data
-            const isEmail = formData.usernameOrEmail.includes("@");
-            const userData = {
-                username: isEmail ? "demo_user" : formData.usernameOrEmail,
-                email: isEmail ? formData.usernameOrEmail : "demo@example.com",
-                isLoggedIn: true,
-            };
+        try {
+            const res = await fetch("/api/login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    usernameOrEmail: formData.usernameOrEmail,
+                    password: formData.password,
+                }),
+            });
 
-            localStorage.setItem("user", JSON.stringify(userData));
+            const data = await res.json();
+
+            if (!res.ok) {
+                setErrors({ api: data.error || "Login failed" });
+                setIsLoading(false);
+                return;
+            }
 
             setIsLoading(false);
             router.push("/dashboard");
-        }, 1500);
+        } catch {
+            setErrors({ api: "Something went wrong. Please try again." });
+            setIsLoading(false);
+        }
     };
 
     return (
@@ -136,6 +145,12 @@ export default function LoginPage() {
                                 )}
                             </div>
                         </div>
+
+                        {errors.api && (
+                            <p className="mt-2 text-sm text-red-600 text-center">
+                                {errors.api}
+                            </p>
+                        )}
 
                         <div className="flex items-center justify-between">
                             <div className="flex items-center">

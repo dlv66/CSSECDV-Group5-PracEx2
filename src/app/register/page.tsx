@@ -7,6 +7,7 @@ import Link from "next/link";
 export default function RegisterPage() {
     const [formData, setFormData] = useState({
         username: "",
+        displayName: "",
         email: "",
         password: "",
         confirmPassword: "",
@@ -39,6 +40,13 @@ export default function RegisterPage() {
             newErrors.username = "Username must be at least 3 characters";
         }
 
+        if (!formData.displayName.trim()) {
+            newErrors.displayName = "Display name is required";
+        } else if (formData.displayName.length < 2) {
+            newErrors.displayName =
+                "Display name must be at least 2 characters";
+        }
+
         if (!formData.email.trim()) {
             newErrors.email = "Email is required";
         } else if (!/\S+@\S+\.\S+/.test(formData.email)) {
@@ -66,21 +74,51 @@ export default function RegisterPage() {
 
         setIsLoading(true);
 
-        // Simulate API call
-        setTimeout(() => {
-            // Store user data in localStorage for demo purposes
-            localStorage.setItem(
-                "user",
-                JSON.stringify({
+        try {
+            const res = await fetch("/api/register", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
                     username: formData.username,
+                    displayName: formData.displayName,
                     email: formData.email,
-                    isLoggedIn: true,
+                    password: formData.password,
                 }),
-            );
+            });
 
+            const data = await res.json();
+
+            if (!res.ok) {
+                setErrors({ api: data.error || "Registration failed" });
+                setIsLoading(false);
+                return;
+            }
+
+            // Registration successful, now auto-login
+            const loginRes = await fetch("/api/login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    usernameOrEmail: formData.username,
+                    password: formData.password,
+                }),
+            });
+            const loginData = await loginRes.json();
+            if (!loginRes.ok) {
+                setErrors({
+                    api:
+                        loginData.error ||
+                        "Auto-login failed. Please log in manually.",
+                });
+                setIsLoading(false);
+                return;
+            }
             setIsLoading(false);
             router.push("/dashboard");
-        }, 1500);
+        } catch {
+            setErrors({ api: "Something went wrong. Please try again." });
+            setIsLoading(false);
+        }
     };
 
     return (
@@ -122,6 +160,34 @@ export default function RegisterPage() {
                                 {errors.username && (
                                     <p className="mt-1 text-sm text-red-600">
                                         {errors.username}
+                                    </p>
+                                )}
+                            </div>
+
+                            <div>
+                                <label
+                                    htmlFor="displayName"
+                                    className="block text-sm font-medium text-gray-700 mb-1"
+                                >
+                                    Display Name
+                                </label>
+                                <input
+                                    id="displayName"
+                                    name="displayName"
+                                    type="text"
+                                    required
+                                    value={formData.displayName}
+                                    onChange={handleChange}
+                                    className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
+                                        errors.displayName
+                                            ? "border-red-300"
+                                            : "border-gray-300"
+                                    }`}
+                                    placeholder="Enter your display name"
+                                />
+                                {errors.displayName && (
+                                    <p className="mt-1 text-sm text-red-600">
+                                        {errors.displayName}
                                     </p>
                                 )}
                             </div>
@@ -225,6 +291,12 @@ export default function RegisterPage() {
                                 "Create Account"
                             )}
                         </button>
+
+                        {errors.api && (
+                            <p className="mt-2 text-sm text-red-600 text-center">
+                                {errors.api}
+                            </p>
+                        )}
                     </form>
 
                     <div className="mt-6 text-center">
