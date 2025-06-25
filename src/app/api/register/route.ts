@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { validatePasswordStrength, hashPassword } from "@/lib/password_auth";
+import { validateEmailUniqueness } from "@/lib/validation/emailUniqueness";
 import { createClient } from "@/lib/utils/supabase/server";
+import { validateUsernameDetailed } from "@/lib/validation/username";
 
 export async function POST(req: Request) {
     const { username, displayName, email, password } = await req.json();
@@ -17,35 +19,34 @@ export async function POST(req: Request) {
         return NextResponse.json({ error }, { status: 400 });
     }
 
-    const supabase = await createClient();
-
-    // Check if email or username already exists
-    const { data: existingEmail, error: emailError } = await supabase
-        .from("users")
-        .select("id")
-        .eq("email", email.toLowerCase())
-        .maybeSingle();
-
-    if (emailError) {
+    // Validate email uniqueness using the new validation module
+    const emailValidation = await validateEmailUniqueness(email);
+    if (!emailValidation.isUnique) {
         return NextResponse.json(
-            { error: "Database error (email check)" },
-            { status: 500 },
-        );
-    }
-    if (existingEmail) {
-        return NextResponse.json(
-            { error: "Email already exists" },
+            { error: emailValidation.error || "Email validation failed" },
             { status: 400 },
         );
     }
 
-    const { data: existingUsername, error: usernameError } = await supabase
+    // Use the new username validation
+    const usernameValidation = validateUsernameDetailed(username);
+    if (!usernameValidation.isValid) {
+        return NextResponse.json(
+            { error: usernameValidation.error || "Username validation failed" },
+            { status: 400 },
+        );
+    }
+
+    const supabase = await createClient();
+
+    // Check if username already exists
+    const { data: existingUsername, error: usernameDbError } = await supabase
         .from("users")
         .select("id")
         .eq("username", username.toLowerCase())
         .maybeSingle();
 
-    if (usernameError) {
+    if (usernameDbError) {
         return NextResponse.json(
             { error: "Database error (username check)" },
             { status: 500 },

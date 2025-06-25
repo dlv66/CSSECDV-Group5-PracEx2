@@ -89,7 +89,14 @@ export default function RegisterPage() {
             const data = await res.json();
 
             if (!res.ok) {
-                setErrors({ api: data.error || "Registration failed" });
+                // Handle specific email/username errors
+                if (data.error?.includes("Email")) {
+                    setErrors({ email: data.error });
+                } else if (data.error?.includes("Username")) {
+                    setErrors({ username: data.error });
+                } else {
+                    setErrors({ api: data.error || "Registration failed" });
+                }
                 setIsLoading(false);
                 return;
             }
