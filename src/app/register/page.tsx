@@ -157,7 +157,7 @@ export default function RegisterPage() {
                                     required
                                     value={formData.username}
                                     onChange={handleChange}
-                                    className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
+                                    className={`w-full px-4 py-3 border text-black rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
                                         errors.username
                                             ? "border-red-300"
                                             : "border-gray-300"
@@ -185,7 +185,7 @@ export default function RegisterPage() {
                                     required
                                     value={formData.displayName}
                                     onChange={handleChange}
-                                    className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
+                                    className={`w-full px-4 py-3 border text-black rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
                                         errors.displayName
                                             ? "border-red-300"
                                             : "border-gray-300"
@@ -213,7 +213,7 @@ export default function RegisterPage() {
                                     required
                                     value={formData.email}
                                     onChange={handleChange}
-                                    className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
+                                    className={`w-full px-4 py-3 border text-black rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
                                         errors.email
                                             ? "border-red-300"
                                             : "border-gray-300"
@@ -241,7 +241,7 @@ export default function RegisterPage() {
                                     required
                                     value={formData.password}
                                     onChange={handleChange}
-                                    className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
+                                    className={`w-full px-4 py-3 border text-black rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
                                         errors.password
                                             ? "border-red-300"
                                             : "border-gray-300"
@@ -269,7 +269,7 @@ export default function RegisterPage() {
                                     required
                                     value={formData.confirmPassword}
                                     onChange={handleChange}
-                                    className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
+                                    className={`w-full px-4 py-3 border text-black rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
                                         errors.confirmPassword
                                             ? "border-red-300"
                                             : "border-gray-300"
