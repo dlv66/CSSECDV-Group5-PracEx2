@@ -32,6 +32,25 @@ export async function validateEmailUniqueness(
             };
         }
 
+        // Reject emails with consecutive dots in local or domain part
+        const [local, domain] = normalizedEmail.split("@");
+        if (local?.includes("..") || domain?.includes("..")) {
+            await ensureMinDuration(start);
+            return {
+                isUnique: false,
+                error: "Invalid email format",
+            };
+        }
+
+        // Reject emails exceeding 320 characters
+        if (normalizedEmail.length > 320) {
+            await ensureMinDuration(start);
+            return {
+                isUnique: false,
+                error: "Email address must not exceed 320 characters",
+            };
+        }
+
         const supabase = await createClient();
 
         // Build the query
