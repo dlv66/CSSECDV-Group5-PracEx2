@@ -1,3 +1,6 @@
+// Set environment variable before importing
+process.env.JWT_SECRET = "test-secret";
+
 import { POST } from "@/app/api/login/route";
 import { NextRequest } from "next/server";
 import { createClient } from "@/lib/utils/supabase/server";
@@ -27,7 +30,6 @@ const mockJwtSign = jwt.sign as jest.MockedFunction<typeof jwt.sign>;
 describe("/api/login", () => {
     beforeEach(() => {
         jest.clearAllMocks();
-        process.env.JWT_SECRET = "test-secret";
     });
 
     const createMockRequest = (body: any): NextRequest => {

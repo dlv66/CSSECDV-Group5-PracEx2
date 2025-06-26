@@ -1,16 +1,51 @@
 import "@testing-library/jest-dom";
-import {
-    Request as CrossFetchRequest,
-    Response as CrossFetchResponse,
-} from "cross-fetch";
+import "whatwg-fetch"; // This polyfills fetch, Request, Response, and Headers globally
 
-// Polyfill global Request for API route tests
-if (typeof global.Request === "undefined") {
-    // @ts-expect-error: Assigning CrossFetchRequest to global.Request for test polyfill
-    global.Request = CrossFetchRequest;
-}
+// Mock NextResponse for API route tests
+jest.mock("next/server", () => ({
+    NextResponse: {
+        json: jest.fn((data, options) => ({
+            json: jest.fn().mockResolvedValue(data),
+            status: options?.status || 200,
+            cookies: {
+                set: jest.fn(),
+            },
+            headers: {
+                get: jest.fn((name) => {
+                    if (name === "set-cookie") {
+                        return "auth_token=mock-jwt-token; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=604800";
+                    }
+                    return null;
+                }),
+                set: jest.fn(),
+                has: jest.fn(),
+            },
+        })),
+    },
+    NextRequest: jest.fn().mockImplementation((url, options) => ({
+        json: jest
+            .fn()
+            .mockResolvedValue(options?.body ? JSON.parse(options.body) : {}),
+        url: url,
+        method: options?.method || "GET",
+        cookies: {
+            get: jest.fn(),
+            getAll: jest.fn(),
+            set: jest.fn(),
+        },
+        headers: {
+            get: jest.fn(),
+            set: jest.fn(),
+            has: jest.fn(),
+        },
+    })),
+}));
 
-if (typeof global.Response === "undefined") {
-    // @ts-expect-error: Assigning CrossFetchResponse to global.Response for test polyfill
-    global.Response = CrossFetchResponse;
-}
+// Mock next/headers for Supabase client
+jest.mock("next/headers", () => ({
+    cookies: jest.fn(() => ({
+        getAll: jest.fn(() => []),
+        set: jest.fn(),
+        get: jest.fn(),
+    })),
+}));
