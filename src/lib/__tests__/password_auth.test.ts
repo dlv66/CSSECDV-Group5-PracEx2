@@ -4,7 +4,6 @@ import {
     validatePasswordStrength,
     validateBcryptHash,
     measureHashTiming,
-    verifyPasswordConstantTime,
     measureVerificationTiming,
 } from "../password_auth";
 
@@ -136,15 +135,15 @@ describe("Password Authentication", () => {
             const hashed = await hashPassword(password);
             
             // Test with valid hash
-            const validResult = await verifyPasswordConstantTime(password, hashed);
+            const validResult = await verifyPassword(password, hashed);
             expect(validResult).toBe(true);
             
             // Test with invalid password
-            const invalidResult = await verifyPasswordConstantTime("wrongPassword", hashed);
+            const invalidResult = await verifyPassword("wrongPassword", hashed);
             expect(invalidResult).toBe(false);
             
             // Test with null hash (simulating non-existent user)
-            const nullResult = await verifyPasswordConstantTime(password, null);
+            const nullResult = await verifyPassword(password, null);
             expect(nullResult).toBe(false);
         });
 
@@ -159,12 +158,12 @@ describe("Password Authentication", () => {
             for (let i = 0; i < 5; i++) {
                 // Existing user (with hash)
                 const startExisting = Date.now();
-                await verifyPasswordConstantTime(password, hashed);
+                await verifyPassword(password, hashed);
                 existingUserTimings.push(Date.now() - startExisting);
                 
                 // Non-existing user (null hash)
                 const startNonExisting = Date.now();
-                await verifyPasswordConstantTime(password, null);
+                await verifyPassword(password, null);
                 nonExistingUserTimings.push(Date.now() - startNonExisting);
             }
             
