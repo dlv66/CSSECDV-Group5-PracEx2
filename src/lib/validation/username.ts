@@ -44,7 +44,7 @@ export function validateUsernameDetailed(
             // System / Admin terms
               "admin","administrator","root","sysadmin","superuser","support",
               "staff","help","helpdesk","contact","webmaster","operator","owner",
-              "manager","moderator","guest","anonymous","security","test","tester",
+              "manager","moderator","guest","anonymous","security",
               "api","ftp","www","mail","email","postmaster","info","billing","sales",
               "shop","store","blog","system","server","host","dev","developer",
               "dashboard","member","user","account","accounts","settings","config",
@@ -58,7 +58,7 @@ export function validateUsernameDetailed(
 
               // Generic invalid / meaningless
               "null","undefined","void","nan","unknown","random","foobar","foobar1",
-              "testuser","example","sample","demo","demo1","placeholder","foo","bar","baz",
+              "example","sample","demo","demo1","placeholder","foo","bar","baz",
 
               // Common profanity
               "fuck","fucking","fucker","fuckers","motherfucker","shit","shitty", "fuq",
