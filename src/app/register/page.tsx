@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { validateUsernameDetailed } from "@/lib/validation/username";
 
 export default function RegisterPage() {
     const [formData, setFormData] = useState({
@@ -34,10 +35,9 @@ export default function RegisterPage() {
     const validateForm = () => {
         const newErrors: { [key: string]: string } = {};
 
-        if (!formData.username.trim()) {
-            newErrors.username = "Username is required";
-        } else if (formData.username.length < 3) {
-            newErrors.username = "Username must be at least 3 characters";
+        const usernameValidation = validateUsernameDetailed(formData.username)
+        if (!usernameValidation.isValid) {
+            newErrors.username = usernameValidation.error || "Username validation failed" ;
         }
 
         if (!formData.displayName.trim()) {
