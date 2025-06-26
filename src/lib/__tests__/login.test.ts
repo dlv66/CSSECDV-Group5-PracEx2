@@ -1,11 +1,20 @@
-import { POST } from "../login/route";
+import { POST } from "@/app/api/login/route";
 import { NextRequest } from "next/server";
 import { createClient } from "@/lib/utils/supabase/server";
 import { compare } from "bcryptjs";
 import jwt from "jsonwebtoken";
 
 // Mock dependencies
-jest.mock("@/lib/utils/supabase/server");
+jest.mock("@/lib/utils/supabase/server", () => ({
+    createClient: jest.fn(() => ({
+        from: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        neq: jest.fn().mockReturnThis(),
+        maybeSingle: jest.fn(),
+        update: jest.fn().mockReturnThis(),
+    })),
+}));
 jest.mock("bcryptjs");
 jest.mock("jsonwebtoken");
 
