@@ -8,6 +8,17 @@ import {
     measureVerificationTiming,
 } from "../password_auth";
 
+jest.mock("@/lib/utils/supabase/server", () => ({
+    createClient: jest.fn(() => ({
+        from: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        neq: jest.fn().mockReturnThis(),
+        maybeSingle: jest.fn(),
+        update: jest.fn().mockReturnThis(),
+    })),
+}));
+
 describe("Password Authentication", () => {
     describe("hashPassword", () => {
         it("should hash a password", async () => {
@@ -31,19 +42,19 @@ describe("Password Authentication", () => {
         it("should generate bcrypt hash with correct $2b$12$ prefix and proper timing", async () => {
             const password = "TestStrongPassword123!";
             const result = await measureHashTiming(password);
-            
+
             // Verify hash format and algorithm parameters
             expect(result.validation.isValid).toBe(true);
-            expect(result.validation.algorithm).toBe('$2b');
+            expect(result.validation.algorithm).toBe("$2b");
             expect(result.validation.costFactor).toBe(12);
             expect(result.hash).toMatch(/^\$2b\$12\$.{53}$/);
-            
+
             // Verify timing (cost factor 12 should take meaningful time)
             // Should take at least 50ms (proving cost factor is being used)
             // but not more than 2000ms (reasonable upper bound for tests)
             expect(result.timeMs).toBeGreaterThan(50);
             expect(result.timeMs).toBeLessThan(2000);
-            
+
             // Verify the hash is actually valid by checking it can verify the password
             const isValid = await verifyPassword(password, result.hash);
             expect(isValid).toBe(true);
@@ -54,26 +65,24 @@ describe("Password Authentication", () => {
             const realHash = await hashPassword("testForValidation123");
             const validation = validateBcryptHash(realHash);
             expect(validation.isValid).toBe(true);
-            expect(validation.algorithm).toBe('$2b');
+            expect(validation.algorithm).toBe("$2b");
             expect(validation.costFactor).toBe(12);
-            
+
             // Test invalid hash formats
             const invalidHashes = [
                 "invalid_hash",
                 "$2b$12$short", // too short
                 "$2c$12$" + "a".repeat(53), // wrong algorithm
                 "$2b$99$" + "a".repeat(53), // invalid cost factor
-                "plaintext_password"
+                "plaintext_password",
             ];
-            
-            invalidHashes.forEach(hash => {
+
+            invalidHashes.forEach((hash) => {
                 const validation = validateBcryptHash(hash);
                 expect(validation.isValid).toBe(false);
                 expect(validation.error).toBeDefined();
             });
         });
-
-
     });
 
     describe("verifyPassword", () => {
@@ -99,33 +108,42 @@ describe("Password Authentication", () => {
             const password = "testPassword123";
             const wrongPassword = "wrongPassword456";
             const hashed = await hashPassword(password);
-            
+
             // Measure timing for multiple verification attempts
             const correctTimings: number[] = [];
             const incorrectTimings: number[] = [];
-            
+
             // Test 5 times each to get statistical data
             for (let i = 0; i < 5; i++) {
-                const correctResult = await measureVerificationTiming(password, hashed);
-                const incorrectResult = await measureVerificationTiming(wrongPassword, hashed);
-                
+                const correctResult = await measureVerificationTiming(
+                    password,
+                    hashed,
+                );
+                const incorrectResult = await measureVerificationTiming(
+                    wrongPassword,
+                    hashed,
+                );
+
                 correctTimings.push(correctResult.timeMs);
                 incorrectTimings.push(incorrectResult.timeMs);
-                
+
                 // Verify the results are as expected
                 expect(correctResult.isValid).toBe(true);
                 expect(incorrectResult.isValid).toBe(false);
             }
-            
+
             // Calculate timing statistics
-            const avgCorrect = correctTimings.reduce((a, b) => a + b) / correctTimings.length;
-            const avgIncorrect = incorrectTimings.reduce((a, b) => a + b) / incorrectTimings.length;
-            
+            const avgCorrect =
+                correctTimings.reduce((a, b) => a + b) / correctTimings.length;
+            const avgIncorrect =
+                incorrectTimings.reduce((a, b) => a + b) /
+                incorrectTimings.length;
+
             // Timing should be similar (within 50% variance)
             const timingDifference = Math.abs(avgCorrect - avgIncorrect);
             const averageTime = (avgCorrect + avgIncorrect) / 2;
             const variancePercentage = (timingDifference / averageTime) * 100;
-            
+
             expect(variancePercentage).toBeLessThan(50); // Within 50% variance
             expect(avgCorrect).toBeGreaterThan(50); // Should take meaningful time
             expect(avgIncorrect).toBeGreaterThan(50); // Should take meaningful time
@@ -134,15 +152,21 @@ describe("Password Authentication", () => {
         it("should verify with constant time protection", async () => {
             const password = "testPassword123";
             const hashed = await hashPassword(password);
-            
+
             // Test with valid hash
-            const validResult = await verifyPasswordConstantTime(password, hashed);
+            const validResult = await verifyPasswordConstantTime(
+                password,
+                hashed,
+            );
             expect(validResult).toBe(true);
-            
+
             // Test with invalid password
-            const invalidResult = await verifyPasswordConstantTime("wrongPassword", hashed);
+            const invalidResult = await verifyPasswordConstantTime(
+                "wrongPassword",
+                hashed,
+            );
             expect(invalidResult).toBe(false);
-            
+
             // Test with null hash (simulating non-existent user)
             const nullResult = await verifyPasswordConstantTime(password, null);
             expect(nullResult).toBe(false);
@@ -151,36 +175,40 @@ describe("Password Authentication", () => {
         it("should have consistent timing for existing and non-existing users", async () => {
             const password = "testPassword123";
             const hashed = await hashPassword(password);
-            
+
             const existingUserTimings: number[] = [];
             const nonExistingUserTimings: number[] = [];
-            
+
             // Test 5 times each
             for (let i = 0; i < 5; i++) {
                 // Existing user (with hash)
                 const startExisting = Date.now();
                 await verifyPasswordConstantTime(password, hashed);
                 existingUserTimings.push(Date.now() - startExisting);
-                
+
                 // Non-existing user (null hash)
                 const startNonExisting = Date.now();
                 await verifyPasswordConstantTime(password, null);
                 nonExistingUserTimings.push(Date.now() - startNonExisting);
             }
-            
+
             // Calculate averages
-            const avgExisting = existingUserTimings.reduce((a, b) => a + b) / existingUserTimings.length;
-            const avgNonExisting = nonExistingUserTimings.reduce((a, b) => a + b) / nonExistingUserTimings.length;
-            
+            const avgExisting =
+                existingUserTimings.reduce((a, b) => a + b) /
+                existingUserTimings.length;
+            const avgNonExisting =
+                nonExistingUserTimings.reduce((a, b) => a + b) /
+                nonExistingUserTimings.length;
+
             // Both should take at least minimum duration (100ms)
             expect(avgExisting).toBeGreaterThan(100);
             expect(avgNonExisting).toBeGreaterThan(100);
-            
+
             // Timing difference should be minimal (within 30% variance)
             const timingDifference = Math.abs(avgExisting - avgNonExisting);
             const averageTime = (avgExisting + avgNonExisting) / 2;
             const variancePercentage = (timingDifference / averageTime) * 100;
-            
+
             expect(variancePercentage).toBeLessThan(30); // Tight timing consistency
         });
     });

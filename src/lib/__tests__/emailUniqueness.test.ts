@@ -6,7 +6,15 @@ import {
 import { createClient } from "@/lib/utils/supabase/server";
 
 // Mock dependencies
-jest.mock("@/lib/utils/supabase/server");
+jest.mock("@/lib/utils/supabase/server", () => ({
+    createClient: jest.fn(() => ({
+        from: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        eq: jest.fn().mockReturnThis(),
+        neq: jest.fn().mockReturnThis(),
+        maybeSingle: jest.fn(),
+    })),
+}));
 
 const mockCreateClient = createClient as jest.MockedFunction<
     typeof createClient
@@ -141,6 +149,54 @@ describe("Email Uniqueness Validation", () => {
             expect(result.isUnique).toBe(false);
             expect(result.error).toBe(
                 "An unexpected error occurred while validating email uniqueness",
+            );
+        });
+
+        it("should reject email with consecutive dots in local part", async () => {
+            const result = await validateEmailUniqueness(
+                "foo..bar@example.com",
+            );
+            expect(result.isUnique).toBe(false);
+            expect(result.error).toBe("Invalid email format");
+        });
+
+        it("should reject email with consecutive dots in domain part", async () => {
+            const result = await validateEmailUniqueness(
+                "foobar@exa..mple.com",
+            );
+            expect(result.isUnique).toBe(false);
+            expect(result.error).toBe("Invalid email format");
+        });
+
+        it("should reject email exceeding 320 characters", async () => {
+            const longEmail = `${"a".repeat(64)}@${"b".repeat(255)}.com`;
+            // This will be >320 chars
+            const result = await validateEmailUniqueness(longEmail);
+            expect(result.isUnique).toBe(false);
+            expect(result.error).toBe(
+                "Email address must not exceed 320 characters",
+            );
+        });
+
+        it("should reject email with missing domain", async () => {
+            const result = await validateEmailUniqueness("user@");
+            expect(result.isUnique).toBe(false);
+            expect(result.error).toBe("Invalid email format");
+        });
+
+        it("should accept mixed case email, normalize to lowercase, and store as lowercase", async () => {
+            mockSupabaseClient.maybeSingle.mockResolvedValue({
+                data: null,
+                error: null,
+            });
+            const result = await validateEmailUniqueness(
+                "TestUser@EXAMPLE.COM",
+            );
+            expect(result.isUnique).toBe(true);
+            expect(result.error).toBeUndefined();
+            expect(mockSupabaseClient.eq).toHaveBeenCalledWith(
+                "email",
+                "testuser@example.com",
             );
         });
     });
