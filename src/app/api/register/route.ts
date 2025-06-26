@@ -43,7 +43,7 @@ export async function POST(req: Request) {
     const { data: existingUsername, error: usernameDbError } = await supabase
         .from("users")
         .select("id")
-        .eq("username", username.toLowerCase())
+        .ilike("username", username)
         .maybeSingle();
 
     if (usernameDbError) {
@@ -63,7 +63,7 @@ export async function POST(req: Request) {
 
     const { error: insertError } = await supabase.from("users").insert([
         {
-            username: username.toLowerCase(),
+            username: username,
             display_name: displayName,
             email: email.toLowerCase(),
             password_hash,

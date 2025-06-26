@@ -28,7 +28,7 @@ export async function POST(req: Request) {
         query = supabase
             .from("users")
             .select("id, username, email, password_hash")
-            .eq("username", usernameOrEmail.toLowerCase())
+            .ilike("username", usernameOrEmail)
             .maybeSingle();
     }
     const { data, error } = await query;
