@@ -2,11 +2,11 @@ import {
     validateEmailUniqueness,
     isEmailUnique,
     assertEmailUniqueness,
-} from "../validation/emailUniqueness";
+} from "@/lib/validation/emailUniqueness";
 import { createClient } from "@/lib/utils/supabase/server";
 
 // Mock dependencies
-jest.mock("@/lib/utils/supabase/server", () => ({
+jest.mock("../utils/supabase/server", () => ({
     createClient: jest.fn(() => ({
         from: jest.fn().mockReturnThis(),
         select: jest.fn().mockReturnThis(),
@@ -197,6 +197,22 @@ describe("Email Uniqueness Validation", () => {
             expect(mockSupabaseClient.eq).toHaveBeenCalledWith(
                 "email",
                 "testuser@example.com",
+            );
+        });
+
+        it("should accept email with dots in local part and subdomains", async () => {
+            mockSupabaseClient.maybeSingle.mockResolvedValue({
+                data: null,
+                error: null,
+            });
+            const result = await validateEmailUniqueness(
+                "test.user@mail.domain.org",
+            );
+            expect(result.isUnique).toBe(true);
+            expect(result.error).toBeUndefined();
+            expect(mockSupabaseClient.eq).toHaveBeenCalledWith(
+                "email",
+                "test.user@mail.domain.org",
             );
         });
     });
