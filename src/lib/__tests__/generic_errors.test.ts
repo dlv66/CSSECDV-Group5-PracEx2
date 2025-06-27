@@ -29,7 +29,7 @@ const mockCreateClient = createClient as jest.MockedFunction<typeof createClient
 const mockCompare = jest.mocked(compare);
 const mockJwtSign = jest.mocked(jwt.sign);
 
-describe("C2: Generic Error Messages (User Enumeration Prevention)", () => {
+describe("Generic Error Messages", () => {
     let mockSupabaseClient: any;
 
     beforeEach(() => {
@@ -52,7 +52,7 @@ describe("C2: Generic Error Messages (User Enumeration Prevention)", () => {
         });
     };
 
-    describe("C2-1: Non-existent username", () => {
+    describe("Non-existent username", () => {
         it("should return generic error with HTTP 401", async () => {
             mockSupabaseClient.maybeSingle.mockResolvedValue({
                 data: null,
@@ -72,8 +72,8 @@ describe("C2: Generic Error Messages (User Enumeration Prevention)", () => {
         });
     });
 
-    describe("C2-2: Non-existent email", () => {
-        it("should return identical response to C2-1", async () => {
+    describe(" Non-existent email", () => {
+        it("should return generic error with HTTP 401", async () => {
             mockSupabaseClient.maybeSingle.mockResolvedValue({
                 data: null,
                 error: null,
@@ -92,8 +92,8 @@ describe("C2: Generic Error Messages (User Enumeration Prevention)", () => {
         });
     });
 
-    describe("C2-3: Valid username, wrong password", () => {
-        it("should return identical response pattern", async () => {
+    describe("Valid username, wrong password", () => {
+        it("should return generic error with HTTP 401", async () => {
             const mockUser = {
                 id: "123",
                 username: "existinguser",
@@ -120,8 +120,8 @@ describe("C2: Generic Error Messages (User Enumeration Prevention)", () => {
         });
     });
 
-    describe("C2-4: Valid email, wrong password", () => {
-        it("should return identical response pattern", async () => {
+    describe("Valid email, wrong password", () => {
+        it("should return generic error with HTTP 401", async () => {
             const mockUser = {
                 id: "123",
                 username: "existinguser",
@@ -148,7 +148,7 @@ describe("C2: Generic Error Messages (User Enumeration Prevention)", () => {
         });
     });
 
-    describe("C2-5: Timing consistency verification", () => {
+    describe("Timing consistency verification", () => {
         it("should have consistent response times for all error scenarios", async () => {
             const scenarios = [
                 {
@@ -222,7 +222,7 @@ describe("C2: Generic Error Messages (User Enumeration Prevention)", () => {
                 });
             }
 
-            // Verify all responses have identical structure
+            
             responses.forEach((response) => {
                 expect(response.status).toBe(401);
                 expect(response.body).toEqual({ error: "Invalid username/email or password" });
