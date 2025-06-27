@@ -13,19 +13,24 @@ jest.mock("@/lib/utils/supabase/server", () => ({
         from: jest.fn().mockReturnThis(),
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
+        ilike: jest.fn().mockReturnThis(),
         neq: jest.fn().mockReturnThis(),
         maybeSingle: jest.fn(),
         update: jest.fn().mockReturnThis(),
     })),
 }));
-jest.mock("bcryptjs");
-jest.mock("jsonwebtoken");
+jest.mock("bcryptjs", () => ({
+    compare: jest.fn(),
+}));
+jest.mock("jsonwebtoken", () => ({
+    sign: jest.fn(),
+}));
 
 const mockCreateClient = createClient as jest.MockedFunction<
     typeof createClient
 >;
-const mockCompare = compare as jest.MockedFunction<typeof compare>;
-const mockJwtSign = jwt.sign as jest.MockedFunction<typeof jwt.sign>;
+const mockCompare = jest.mocked(compare);
+const mockJwtSign = jest.mocked(jwt.sign);
 
 describe("/api/login", () => {
     beforeEach(() => {
@@ -43,6 +48,7 @@ describe("/api/login", () => {
         from: jest.fn().mockReturnThis(),
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
+        ilike: jest.fn().mockReturnThis(),
         maybeSingle: jest.fn(),
         update: jest.fn().mockReturnThis(),
     };
@@ -151,7 +157,7 @@ describe("/api/login", () => {
 
             expect(response.status).toBe(200);
             expect(data.message).toBe("Login successful");
-            expect(mockSupabaseClient.eq).toHaveBeenCalledWith(
+            expect(mockSupabaseClient.ilike).toHaveBeenCalledWith(
                 "username",
                 "testuser",
             );
@@ -172,7 +178,7 @@ describe("/api/login", () => {
             const data = await response.json();
 
             expect(response.status).toBe(401);
-            expect(data.error).toBe("Invalid credentials");
+            expect(data.error).toBe("Invalid username/email or password");
         });
 
         it("should return 401 when password is incorrect", async () => {
@@ -198,7 +204,7 @@ describe("/api/login", () => {
             const data = await response.json();
 
             expect(response.status).toBe(401);
-            expect(data.error).toBe("Invalid credentials");
+            expect(data.error).toBe("Invalid username/email or password");
         });
 
         it("should return 401 when database error occurs", async () => {
@@ -216,7 +222,7 @@ describe("/api/login", () => {
             const data = await response.json();
 
             expect(response.status).toBe(401);
-            expect(data.error).toBe("Invalid credentials");
+            expect(data.error).toBe("Invalid username/email or password");
         });
 
         it("should set http-only cookie on successful login", async () => {
@@ -273,6 +279,218 @@ describe("/api/login", () => {
                 last_login: expect.any(String),
             });
             expect(mockSupabaseClient.eq).toHaveBeenCalledWith("id", "123");
+        });
+    });
+
+    describe("Dual Login Support", () => {
+        describe("Login with username", () => {
+            it("should login successfully with username", async () => {
+                const mockUser = {
+                    id: "123",
+                    username: "testuser",
+                    email: "test@example.com",
+                    password_hash: "hashedpassword",
+                };
+
+                mockSupabaseClient.maybeSingle.mockResolvedValue({
+                    data: mockUser,
+                    error: null,
+                });
+                
+
+                const request = createMockRequest({
+                    usernameOrEmail: "testuser",
+                    password: "testpass",
+                });
+
+                const response = await POST(request);
+                const data = await response.json();
+
+                expect(response.status).toBe(200);
+                expect(data.message).toBe("Login successful");
+                expect(mockSupabaseClient.ilike).toHaveBeenCalledWith(
+                    "username",
+                    "testuser",
+                );
+            });
+        });
+
+        describe("Login with email", () => {
+            it("should login successfully with email", async () => {
+                const mockUser = {
+                    id: "123",
+                    username: "testuser",
+                    email: "test@example.com",
+                    password_hash: "hashedpassword",
+                };
+
+                mockSupabaseClient.maybeSingle.mockResolvedValue({
+                    data: mockUser,
+                    error: null,
+                });
+                
+
+                const request = createMockRequest({
+                    usernameOrEmail: "test@example.com",
+                    password: "testpass",
+                });
+
+                const response = await POST(request);
+                const data = await response.json();
+
+                expect(response.status).toBe(200);
+                expect(data.message).toBe("Login successful");
+                expect(mockSupabaseClient.eq).toHaveBeenCalledWith(
+                    "email",
+                    "test@example.com",
+                );
+            });
+        });
+
+        describe("Username case insensitivity", () => {
+            it("should login successfully with different username case", async () => {
+                const mockUser = {
+                    id: "123",
+                    username: "TestUser",
+                    email: "test@example.com",
+                    password_hash: "hashedpassword",
+                };
+
+                mockSupabaseClient.maybeSingle.mockResolvedValue({
+                    data: mockUser,
+                    error: null,
+                });
+
+
+                const request = createMockRequest({
+                    usernameOrEmail: "testuser", 
+                    password: "testpass",
+                });
+
+                const response = await POST(request);
+                const data = await response.json();
+
+                expect(response.status).toBe(200);
+                expect(data.message).toBe("Login successful");
+                // ilike performs case-insensitive search
+                expect(mockSupabaseClient.ilike).toHaveBeenCalledWith(
+                    "username",
+                    "testuser",
+                );
+            });
+        });
+
+        describe("Email case insensitivity", () => {
+            it("should login successfully with different email case", async () => {
+                const mockUser = {
+                    id: "123",
+                    username: "testuser",
+                    email: "test@example.com",
+                    password_hash: "hashedpassword",
+                };
+
+                mockSupabaseClient.maybeSingle.mockResolvedValue({
+                    data: mockUser,
+                    error: null,
+                });
+
+                const request = createMockRequest({
+                    usernameOrEmail: "Test@Example.com", // mixed case input
+                    password: "testpass",
+                });
+
+                const response = await POST(request);
+                const data = await response.json();
+
+                expect(response.status).toBe(200);
+                expect(data.message).toBe("Login successful");
+                // Email should be converted to lowercase before lookup
+                expect(mockSupabaseClient.eq).toHaveBeenCalledWith(
+                    "email",
+                    "test@example.com",
+                );
+            });
+        });
+
+        describe("Invalid username format", () => {
+            it("should fail with generic error for username containing @", async () => {
+                // When input contains @ but is not a valid email format,
+                // it will be treated as email and likely fail lookup
+                mockSupabaseClient.maybeSingle.mockResolvedValue({
+                    data: null,
+                    error: null,
+                });
+
+                const request = createMockRequest({
+                    usernameOrEmail: "user@invalid", // Contains @ but invalid format
+                    password: "testpass",
+                });
+
+                const response = await POST(request);
+                const data = await response.json();
+
+                expect(response.status).toBe(401);
+                expect(data.error).toBe("Invalid username/email or password");
+                // Should be treated as email (contains @)
+                expect(mockSupabaseClient.eq).toHaveBeenCalledWith(
+                    "email",
+                    "user@invalid",
+                );
+            });
+        });
+
+        describe("Edge cases", () => {
+            it("should handle email with multiple @ symbols", async () => {
+                mockSupabaseClient.maybeSingle.mockResolvedValue({
+                    data: null,
+                    error: null,
+                });
+
+                const request = createMockRequest({
+                    usernameOrEmail: "user@@example.com",
+                    password: "testpass",
+                });
+
+                const response = await POST(request);
+                const data = await response.json();
+
+                expect(response.status).toBe(401);
+                expect(data.error).toBe("Invalid username/email or password");
+                expect(mockSupabaseClient.eq).toHaveBeenCalledWith(
+                    "email",
+                    "user@@example.com",
+                );
+            });
+
+            it("should handle username with numbers and underscores", async () => {
+                const mockUser = {
+                    id: "123",
+                    username: "test_user_123",
+                    email: "test@example.com",
+                    password_hash: "hashedpassword",
+                };
+
+                mockSupabaseClient.maybeSingle.mockResolvedValue({
+                    data: mockUser,
+                    error: null,
+                });
+
+
+                const request = createMockRequest({
+                    usernameOrEmail: "test_user_123",
+                    password: "testpass",
+                });
+
+                const response = await POST(request);
+                const data = await response.json();
+
+                expect(response.status).toBe(200);
+                expect(data.message).toBe("Login successful");
+                expect(mockSupabaseClient.ilike).toHaveBeenCalledWith(
+                    "username",
+                    "test_user_123",
+                );
+            });
         });
     });
 });

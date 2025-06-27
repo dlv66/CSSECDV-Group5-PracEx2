@@ -33,7 +33,7 @@ export async function POST(req: Request) {
     const { data, error } = await query;
     if (error || !data) {
         return NextResponse.json(
-            { error: "Invalid credentials" },
+            { error: "Invalid username/email or password" },
             { status: 401 },
         );
     }
@@ -43,7 +43,7 @@ export async function POST(req: Request) {
     const passwordMatch = await compare(password, user.password_hash);
     if (!passwordMatch) {
         return NextResponse.json(
-            { error: "Invalid credentials" },
+            { error: "Invalid username/email or password" },
             { status: 401 },
         );
     }
