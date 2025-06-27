@@ -20,13 +20,13 @@ export async function POST(req: Request) {
     if (usernameOrEmail.includes("@")) {
         query = supabase
             .from("users")
-            .select("id, username, email, password_hash")
+            .select("id, username, email, display_name, password_hash")
             .eq("email", usernameOrEmail.toLowerCase())
             .maybeSingle();
     } else {
         query = supabase
             .from("users")
-            .select("id, username, email, password_hash")
+            .select("id, username, email, display_name, password_hash")
             .ilike("username", usernameOrEmail)
             .maybeSingle();
     }
@@ -57,7 +57,12 @@ export async function POST(req: Request) {
     // Generate JWT
     const jwtSecret = process.env.JWT_SECRET || "dev_secret";
     const token = jwt.sign(
-        { id: user.id, username: user.username, email: user.email },
+        {
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            displayName: user.display_name,
+        },
         jwtSecret,
         { expiresIn: JWT_EXPIRES_IN },
     );
