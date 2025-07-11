@@ -2,42 +2,11 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/utils/supabase/server";
 import { validateEmailUniqueness } from "@/lib/validation/emailUniqueness";
 import { validateUsernameDetailed } from "@/lib/validation/username";
-import jwt from "jsonwebtoken";
-import { cookies } from "next/headers";
-
-const JWT_SECRET = process.env.JWT_SECRET || "dev_secret";
-
-interface JwtPayload {
-    id: string;
-    username: string;
-    email: string;
-    displayName?: string;
-    iat?: number;
-    exp?: number;
-}
-
-// Helper function to get user from JWT token
-async function getUserFromToken(): Promise<JwtPayload | null> {
-    const cookieStore = await cookies();
-    const token = cookieStore.get("auth_token")?.value;
-
-    if (!token) return null;
-
-    try {
-        const payload = jwt.verify(token, JWT_SECRET);
-        if (
-            typeof payload === "object" &&
-            "username" in payload &&
-            "email" in payload &&
-            "id" in payload
-        ) {
-            return payload as JwtPayload;
-        }
-    } catch {
-        // Invalid token
-    }
-    return null;
-}
+import {
+    getUserFromToken,
+    generateToken,
+    setAuthCookie,
+} from "@/lib/utils/jwt";
 
 // GET - Retrieve user profile
 export async function GET() {
@@ -166,16 +135,12 @@ export async function PUT(req: Request) {
     }
 
     // Generate new JWT with updated information
-    const newToken = jwt.sign(
-        {
-            id: data.id,
-            username: data.username,
-            email: data.email,
-            displayName: data.display_name,
-        },
-        JWT_SECRET,
-        { expiresIn: "7d" },
-    );
+    const newToken = generateToken({
+        id: data.id,
+        username: data.username,
+        email: data.email,
+        displayName: data.display_name,
+    });
 
     const response = NextResponse.json({
         message: "Profile updated successfully",
@@ -190,13 +155,7 @@ export async function PUT(req: Request) {
     });
 
     // Update the auth token cookie
-    response.cookies.set("auth_token", newToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        path: "/",
-        maxAge: 60 * 60 * 24 * 7, // 7 days
-    });
+    setAuthCookie(response, newToken);
 
     return response;
 }
