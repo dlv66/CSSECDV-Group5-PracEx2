@@ -77,6 +77,12 @@ export default async function DashboardPage() {
                                 Welcome, {safeDisplayName}!
                             </span>
                             <a
+                                href="/profile"
+                                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                            >
+                                Profile
+                            </a>
+                            <a
                                 href="/logout"
                                 className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
                             >
@@ -121,6 +127,14 @@ export default async function DashboardPage() {
                                 Member Since:{" "}
                                 <span className="font-medium">Today</span>
                             </p>
+                            <div className="mt-4">
+                                <a
+                                    href="/profile"
+                                    className="bg-purple-600 text-white py-2 px-4 rounded-lg hover:bg-purple-700 transition-colors text-sm"
+                                >
+                                    Edit Profile
+                                </a>
+                            </div>
                         </div>
                     </div>
 
