@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/utils/supabase/server";
 import { compare } from "bcryptjs";
-import jwt from "jsonwebtoken";
-
-const JWT_EXPIRES_IN = "7d";
+import { generateToken, setAuthCookie } from "@/lib/utils/jwt";
 
 export async function POST(req: Request) {
     const { usernameOrEmail, password } = await req.json();
@@ -20,13 +18,13 @@ export async function POST(req: Request) {
     if (usernameOrEmail.includes("@")) {
         query = supabase
             .from("users")
-            .select("id, username, email, password_hash")
+            .select("id, username, email, display_name, password_hash")
             .eq("email", usernameOrEmail.toLowerCase())
             .maybeSingle();
     } else {
         query = supabase
             .from("users")
-            .select("id, username, email, password_hash")
+            .select("id, username, email, display_name, password_hash")
             .ilike("username", usernameOrEmail)
             .maybeSingle();
     }
@@ -55,21 +53,15 @@ export async function POST(req: Request) {
         .eq("id", user.id);
 
     // Generate JWT
-    const jwtSecret = process.env.JWT_SECRET || "dev_secret";
-    const token = jwt.sign(
-        { id: user.id, username: user.username, email: user.email },
-        jwtSecret,
-        { expiresIn: JWT_EXPIRES_IN },
-    );
+    const token = generateToken({
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        displayName: user.display_name,
+    });
 
     // Set HTTP-only cookie
     const response = NextResponse.json({ message: "Login successful" });
-    response.cookies.set("auth_token", token, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        path: "/",
-        maxAge: 60 * 60 * 24 * 7, // 7 days
-    });
+    setAuthCookie(response, token);
     return response;
 }

@@ -1,13 +1,8 @@
 import { NextResponse } from "next/server";
+import { clearAuthCookie } from "@/lib/utils/jwt";
 
 export async function POST() {
     const response = NextResponse.json({ message: "Logged out" });
-    response.cookies.set("auth_token", "", {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        path: "/",
-        maxAge: 0,
-    });
+    clearAuthCookie(response);
     return response;
 }

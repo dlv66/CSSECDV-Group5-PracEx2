@@ -8,8 +8,27 @@ interface JwtPayload {
     id: string;
     username: string;
     email: string;
+    displayName?: string;
     iat?: number;
     exp?: number;
+}
+
+/**
+ * Escapes HTML entities to prevent XSS attacks
+ * @param text - The text to escape
+ * @returns string - The escaped text
+ */
+function escapeHtml(text: string): string {
+    const htmlEscapes: { [key: string]: string } = {
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#x27;",
+        "/": "&#x2F;",
+    };
+
+    return text.replace(/[&<>"'/]/g, (match) => htmlEscapes[match]);
 }
 
 export default async function DashboardPage() {
@@ -35,6 +54,13 @@ export default async function DashboardPage() {
         redirect("/login");
     }
 
+    // Escape username and email for safe display
+    const safeUsername = escapeHtml(user.username);
+    const safeEmail = escapeHtml(user.email);
+    const safeDisplayName = user.displayName
+        ? escapeHtml(user.displayName)
+        : safeUsername;
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-100">
             {/* Navigation Header */}
@@ -48,8 +74,14 @@ export default async function DashboardPage() {
                         </div>
                         <div className="flex items-center space-x-4">
                             <span className="text-gray-700">
-                                Welcome, {user.username}!
+                                Welcome, {safeDisplayName}!
                             </span>
+                            <a
+                                href="/profile"
+                                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                            >
+                                Profile
+                            </a>
                             <a
                                 href="/logout"
                                 className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors"
@@ -69,14 +101,19 @@ export default async function DashboardPage() {
                         <div className="flex items-center space-x-4 mb-4">
                             <div className="w-12 h-12 bg-purple-600 rounded-full flex items-center justify-center">
                                 <span className="text-white font-bold text-lg">
-                                    {user.username.charAt(0).toUpperCase()}
+                                    {safeDisplayName.charAt(0).toUpperCase()}
                                 </span>
                             </div>
                             <div>
                                 <h3 className="text-lg font-semibold text-gray-900">
-                                    {user.username}
+                                    {safeDisplayName}
                                 </h3>
-                                <p className="text-gray-600">{user.email}</p>
+                                <p className="text-gray-600">{safeEmail}</p>
+                                {user.displayName && (
+                                    <p className="text-sm text-gray-500">
+                                        @{safeUsername}
+                                    </p>
+                                )}
                             </div>
                         </div>
                         <div className="border-t pt-4">
@@ -90,6 +127,14 @@ export default async function DashboardPage() {
                                 Member Since:{" "}
                                 <span className="font-medium">Today</span>
                             </p>
+                            <div className="mt-4">
+                                <a
+                                    href="/profile"
+                                    className="bg-purple-600 text-white py-2 px-4 rounded-lg hover:bg-purple-700 transition-colors text-sm"
+                                >
+                                    Edit Profile
+                                </a>
+                            </div>
                         </div>
                     </div>
 
