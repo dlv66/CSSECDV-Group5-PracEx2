@@ -66,7 +66,7 @@ export async function PUT(req: Request) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { userId, displayName, email, username } = await req.json();
+    const { userId, displayName, email, username, roleIds } = await req.json();
 
     if (!userId) {
         return NextResponse.json(
@@ -159,6 +159,44 @@ export async function PUT(req: Request) {
             { error: "Failed to update user" },
             { status: 500 },
         );
+    }
+
+    // --- Role update logic ---
+    if (Array.isArray(roleIds)) {
+        // Remove all existing roles for the user
+        const { error: deleteError } = await supabase
+            .from("user_roles")
+            .delete()
+            .eq("user_id", userId);
+
+        if (deleteError) {
+            console.error("Failed to remove existing roles:", deleteError);
+            return NextResponse.json(
+                { error: "Failed to remove existing roles" },
+                { status: 500 },
+            );
+        }
+
+        // Assign new roles
+        if (roleIds.length > 0) {
+            const newRoles = roleIds.map((roleId: number) => ({
+                user_id: userId,
+                role_id: roleId,
+                assigned_at: new Date().toISOString(),
+            }));
+
+            const { error: insertError } = await supabase
+                .from("user_roles")
+                .insert(newRoles);
+
+            if (insertError) {
+                console.error("Failed to assign new roles:", insertError);
+                return NextResponse.json(
+                    { error: "Failed to assign new roles" },
+                    { status: 500 },
+                );
+            }
+        }
     }
 
     return NextResponse.json({

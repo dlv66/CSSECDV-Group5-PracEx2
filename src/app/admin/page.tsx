@@ -203,10 +203,32 @@ export default function AdminPage() {
         setShowModal(false);
         setSelectedUser(null);
     };
-    // Dummy confirmSave (does not update backend)
-    const confirmSave = () => {
-        setShowModal(false);
-        setSelectedUser(null);
+    // ConfirmSave
+    const confirmSave = async () => {
+        if (!selectedUser) return;
+        setError(null);
+
+        try {
+            await fetch("/api/admin/users", {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    userId: selectedUser.id,
+                    displayName: selectedUser.displayName,
+                    email: selectedUser.email,
+                    username: selectedUser.username,
+                    roleIds: selectedUser.selectedRoles, // array of role IDs
+                }),
+            });
+
+            // Optionally, refresh users list or update local state
+            setShowModal(false);
+            setSelectedUser(null);
+            // Optionally, refetch users here
+        } catch (err) {
+            setError("Failed to update user roles.");
+        }
+
     };
 
     if (isLoading) {

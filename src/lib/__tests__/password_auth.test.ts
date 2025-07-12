@@ -5,7 +5,7 @@ import {
     validateBcryptHash,
     measureHashTiming,
     measureVerificationTiming,
-} from "../password_auth";
+} from "../validation/password_auth";
 
 jest.mock("@/lib/utils/supabase/server", () => ({
     createClient: jest.fn(() => ({

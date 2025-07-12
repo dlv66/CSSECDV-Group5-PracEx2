@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { validatePasswordStrength, hashPassword } from "@/lib/password_auth";
+import { validatePasswordStrength, hashPassword } from "@/lib/validation/password_auth";
 import { validateEmailUniqueness } from "@/lib/validation/emailUniqueness";
 import { createClient } from "@/lib/utils/supabase/server";
 import { validateUsernameDetailed } from "@/lib/validation/username";
@@ -61,7 +61,7 @@ export async function POST(req: Request) {
 
     const password_hash = await hashPassword(password);
 
-    const { error: insertError } = await supabase.from("users").insert([
+    const { data: newUser, error: insertError } = await supabase.from("users").insert([
         {
             username: username,
             display_name: displayName,
@@ -72,12 +72,45 @@ export async function POST(req: Request) {
             updated_at: new Date().toISOString(),
             last_login: new Date().toISOString(),
         },
-    ]);
+    ])
+    .select()
+    .single();
 
     if (insertError) {
         return NextResponse.json(
             { error: `Database error (insert): ${insertError.message}` },
             { status: 500 },
+        );
+    }
+
+    // Assign default 'user' role
+    const { data: userRole, error: roleError } = await supabase
+        .from("roles")
+        .select("id")
+        .eq("name", "user")
+        .single();
+
+    if (roleError) {
+        return NextResponse.json(
+            { error: `Role lookup failed: ${roleError.message}` },
+            { status: 500 }
+        );
+    }
+
+    const { error: assignRoleError } = await supabase
+        .from("user_roles")
+        .insert([
+            {
+                user_id: newUser.id,
+                role_id: userRole.id,
+                assigned_at: new Date().toISOString(),
+            },
+        ]);
+
+    if (assignRoleError) {
+        return NextResponse.json(
+            { error: `Role assignment failed: ${assignRoleError.message}` },
+            { status: 500 }
         );
     }
 
