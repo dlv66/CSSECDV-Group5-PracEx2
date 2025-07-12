@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { validateUsernameDetailed } from "@/lib/validation/username";
 
 export default function RegisterPage() {
     const [formData, setFormData] = useState({
@@ -34,10 +35,9 @@ export default function RegisterPage() {
     const validateForm = () => {
         const newErrors: { [key: string]: string } = {};
 
-        if (!formData.username.trim()) {
-            newErrors.username = "Username is required";
-        } else if (formData.username.length < 3) {
-            newErrors.username = "Username must be at least 3 characters";
+        const usernameValidation = validateUsernameDetailed(formData.username)
+        if (!usernameValidation.isValid) {
+            newErrors.username = usernameValidation.error || "Username validation failed" ;
         }
 
         if (!formData.displayName.trim()) {
@@ -89,7 +89,14 @@ export default function RegisterPage() {
             const data = await res.json();
 
             if (!res.ok) {
-                setErrors({ api: data.error || "Registration failed" });
+                // Handle specific email/username errors
+                if (data.error?.includes("Email")) {
+                    setErrors({ email: data.error });
+                } else if (data.error?.includes("Username")) {
+                    setErrors({ username: data.error });
+                } else {
+                    setErrors({ api: data.error || "Registration failed" });
+                }
                 setIsLoading(false);
                 return;
             }
@@ -150,7 +157,7 @@ export default function RegisterPage() {
                                     required
                                     value={formData.username}
                                     onChange={handleChange}
-                                    className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
+                                    className={`w-full px-4 py-3 border text-black rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
                                         errors.username
                                             ? "border-red-300"
                                             : "border-gray-300"
@@ -178,7 +185,7 @@ export default function RegisterPage() {
                                     required
                                     value={formData.displayName}
                                     onChange={handleChange}
-                                    className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
+                                    className={`w-full px-4 py-3 border text-black rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
                                         errors.displayName
                                             ? "border-red-300"
                                             : "border-gray-300"
@@ -206,7 +213,7 @@ export default function RegisterPage() {
                                     required
                                     value={formData.email}
                                     onChange={handleChange}
-                                    className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
+                                    className={`w-full px-4 py-3 border text-black rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
                                         errors.email
                                             ? "border-red-300"
                                             : "border-gray-300"
@@ -234,7 +241,7 @@ export default function RegisterPage() {
                                     required
                                     value={formData.password}
                                     onChange={handleChange}
-                                    className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
+                                    className={`w-full px-4 py-3 border text-black rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
                                         errors.password
                                             ? "border-red-300"
                                             : "border-gray-300"
@@ -262,7 +269,7 @@ export default function RegisterPage() {
                                     required
                                     value={formData.confirmPassword}
                                     onChange={handleChange}
-                                    className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
+                                    className={`w-full px-4 py-3 border text-black rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors ${
                                         errors.confirmPassword
                                             ? "border-red-300"
                                             : "border-gray-300"

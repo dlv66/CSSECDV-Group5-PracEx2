@@ -103,7 +103,7 @@ export default function LoginPage() {
                                     required
                                     value={formData.usernameOrEmail}
                                     onChange={handleChange}
-                                    className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-colors ${
+                                    className={`w-full px-4 py-3 border text-black rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-colors ${
                                         errors.usernameOrEmail
                                             ? "border-red-300"
                                             : "border-gray-300"
@@ -131,7 +131,7 @@ export default function LoginPage() {
                                     required
                                     value={formData.password}
                                     onChange={handleChange}
-                                    className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-colors ${
+                                    className={`w-full px-4 py-3 border text-black rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent transition-colors ${
                                         errors.password
                                             ? "border-red-300"
                                             : "border-gray-300"

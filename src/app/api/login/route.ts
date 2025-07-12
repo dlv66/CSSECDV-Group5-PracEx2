@@ -3,7 +3,6 @@ import { createClient } from "@/lib/utils/supabase/server";
 import { compare } from "bcryptjs";
 import jwt from "jsonwebtoken";
 
-const JWT_SECRET = process.env.JWT_SECRET || "dev_secret"; // Use env var in production
 const JWT_EXPIRES_IN = "7d";
 
 export async function POST(req: Request) {
@@ -28,13 +27,13 @@ export async function POST(req: Request) {
         query = supabase
             .from("users")
             .select("id, username, email, password_hash")
-            .eq("username", usernameOrEmail.toLowerCase())
+            .ilike("username", usernameOrEmail)
             .maybeSingle();
     }
     const { data, error } = await query;
     if (error || !data) {
         return NextResponse.json(
-            { error: "Invalid credentials" },
+            { error: "Invalid username/email or password" },
             { status: 401 },
         );
     }
@@ -44,7 +43,7 @@ export async function POST(req: Request) {
     const passwordMatch = await compare(password, user.password_hash);
     if (!passwordMatch) {
         return NextResponse.json(
-            { error: "Invalid credentials" },
+            { error: "Invalid username/email or password" },
             { status: 401 },
         );
     }
@@ -56,9 +55,10 @@ export async function POST(req: Request) {
         .eq("id", user.id);
 
     // Generate JWT
+    const jwtSecret = process.env.JWT_SECRET || "dev_secret";
     const token = jwt.sign(
         { id: user.id, username: user.username, email: user.email },
-        JWT_SECRET,
+        jwtSecret,
         { expiresIn: JWT_EXPIRES_IN },
     );
 

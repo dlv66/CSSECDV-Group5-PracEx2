@@ -1,12 +1,42 @@
 import bcrypt from 'bcryptjs';
 const SALT_ROUNDS = 12;
 
+// Minimum duration for timing consistency (in ms)
+const MIN_VERIFICATION_DURATION = 100;
+
+// This is a real bcrypt hash of "PasswordTest123"
+const DUMMY_HASH = "$2b$12$AJtoqNl/gmopQXGwuzF9iu8h1EYNOgiDbUSDSNEJrMHlN45Ea5dCy";
+
+async function ensureMinVerificationDuration(start: number) {
+  const elapsed = Date.now() - start;
+  if (elapsed < MIN_VERIFICATION_DURATION) {
+    await new Promise(resolve => 
+      setTimeout(resolve, MIN_VERIFICATION_DURATION - elapsed)
+    );
+  }
+}
+
 export async function hashPassword(password: string) {
   return await bcrypt.hash(password, SALT_ROUNDS);
 }
 
-export async function verifyPassword(password: string, hashed: string) {
-  return await bcrypt.compare(password, hashed);
+export async function verifyPassword(password: string, hash: string | null): Promise<boolean> {
+  const start = Date.now();
+  
+  try {
+    // Always perform a hash comparison, EVEN IF USER DOESN'T EXIST
+    const hashToCompare = hash || DUMMY_HASH;
+    const isValid = await bcrypt.compare(password, hashToCompare);
+    
+    // If user doesn't exist (hash was null), always return false
+    const result = hash ? isValid : false;
+    
+    await ensureMinVerificationDuration(start);
+    return result;
+  } catch {
+    await ensureMinVerificationDuration(start);
+    return false;
+  }
 }
 
 /* 
@@ -33,14 +63,6 @@ const commonPasswords: string[] = [
 ];
 
 export function validatePasswordStrength(password: string, username: string, email: string): string | null {
-  if (password.length < 8)
-    return 'Password must be at least 8 characters long';
-
-  if (password.length > 128)
-    return 'Password must not exceed 128 characters';
-
-  if (commonPasswords.includes(password.toLowerCase()))
-    return 'This password is too common';
 
   if (password.toLowerCase() === username.toLowerCase())
     return 'Password cannot be the same as your username';
@@ -49,8 +71,17 @@ export function validatePasswordStrength(password: string, username: string, ema
   if (password.toLowerCase() === emailLocal.toLowerCase())
     return 'Password cannot be the same as your email';
 
+  if (commonPasswords.includes(password.toLowerCase()))
+    return 'This password is too common';
+
   if (containsSequential(password))
     return 'Password cannot contain sequential characters';
+
+  if (password.length < 8)
+    return 'Password must be at least 8 characters long';
+
+  if (password.length > 128)
+    return 'Password must not exceed 128 characters';
 
   return null; // valid
 }
@@ -73,4 +104,77 @@ function containsSequential(password: string): boolean {
   }
 
   return false;
+}
+
+
+export function validateBcryptHash(hash: string): {
+  isValid: boolean;
+  algorithm?: string;
+  costFactor?: number;
+  error?: string;
+} {
+  // bcrypt format: $2b$12$[22-char salt][31-char hash] = 60 chars total, 7 yung header
+  const bcryptRegex = /^\$2[ab]\$(\d{2})\$.{53}$/;
+  const match = hash.match(bcryptRegex);
+  
+  if (!match) {
+    return {
+      isValid: false,
+      error: 'Invalid bcrypt hash format'
+    };
+  }
+  
+  const costFactor = parseInt(match[1], 10);
+  
+  if (costFactor < 12 || costFactor > 20) { // minimum is 12, 20 is hula, 14 recommended
+    return {
+      isValid: false,
+      error: 'Invalid bcrypt cost factor'
+    };
+  }
+  
+  const algorithm = hash.substring(0, 3); // $2a or $2b
+  
+  return {
+    isValid: true,
+    algorithm,
+    costFactor
+  };
+}
+
+
+export async function measureHashTiming(password: string): Promise<{
+  hash: string;
+  timeMs: number;
+  validation: ReturnType<typeof validateBcryptHash>;
+}> {
+  const startTime = Date.now();
+  const hash = await hashPassword(password);
+  const timeMs = Date.now() - startTime;
+  
+  const validation = validateBcryptHash(hash);
+  
+  return {
+    hash,
+    timeMs,
+    validation
+  };
+}
+
+
+export async function measureVerificationTiming(
+  password: string, 
+  hash: string
+): Promise<{
+  isValid: boolean;
+  timeMs: number;
+}> {
+  const start = Date.now();
+  const isValid = await verifyPassword(password, hash);
+  const timeMs = Date.now() - start;
+  
+  return {
+    isValid,
+    timeMs
+  };
 }
