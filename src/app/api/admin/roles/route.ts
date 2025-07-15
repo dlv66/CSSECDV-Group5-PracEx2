@@ -10,9 +10,17 @@ export async function GET() {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Permission check: must have 'admin_access' permission
-    const hasPermission = await userHasPermission(user.id, 'admin_access');
-    if (!hasPermission) {
+    // ADMIN Permission check: must have 'admin_access' permission
+    const hasAdminPermission = await userHasPermission(user.id, 'admin_access');
+    if (!hasAdminPermission) {
+        console.log("--- NOT ADMIN: You are not authorized to access this resource ---");
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    // MANAGER Permission check: must have 'manager_access' permission
+    const hasManagerPermission = await userHasPermission(user.id, 'manage_users');
+    if (!hasManagerPermission) {
+        console.log("--- NOT MANAGER: You are not authorized to access this resource ---");
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
