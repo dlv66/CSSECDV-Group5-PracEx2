@@ -60,11 +60,20 @@ export default function AdminPage() {
                         email: profileData.email,
                         displayName: profileData.displayName,
                     });
+                } else if (profileResponse.status === 401) {
+                    // User not authenticated, redirect to login
+                    window.location.href = "/login";
+                    return;
                 }
 
                 // Fetch all users
                 const usersResponse = await fetch("/api/admin/users");
                 if (!usersResponse.ok) {
+                    if (usersResponse.status === 403) {
+                        // User doesn't have admin/manager permissions
+                        window.location.href = "/dashboard";
+                        return;
+                    }
                     const errorData = await usersResponse
                         .json()
                         .catch(() => ({}));

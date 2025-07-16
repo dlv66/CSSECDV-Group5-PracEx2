@@ -14,6 +14,126 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      permissions: {
+        Row: {
+          id: number
+          name: string
+          description: string | null
+          resource: string
+          action: string
+          created_at: string | null
+        }
+        Insert: {
+          id?: number
+          name: string
+          description?: string | null
+          resource: string
+          action: string
+          created_at?: string | null
+        }
+        Update: {
+          id?: number
+          name?: string
+          description?: string | null
+          resource?: string
+          action?: string
+          created_at?: string | null
+        }
+        Relationships: []
+      }
+      role_permissions: {
+        Row: {
+          id: number
+          role_id: number
+          permission_id: number
+          granted_at: string | null
+        }
+        Insert: {
+          id?: number
+          role_id: number
+          permission_id: number
+          granted_at?: string | null
+        }
+        Update: {
+          id?: number
+          role_id?: number
+          permission_id?: number
+          granted_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "role_permissions_permission_id_fkey"
+            columns: ["permission_id"]
+            isOneToOne: false
+            referencedRelation: "permissions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "role_permissions_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "roles"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      roles: {
+        Row: {
+          id: number
+          name: string
+          description: string | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: number
+          name: string
+          description?: string | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: number
+          name?: string
+          description?: string | null
+          created_at?: string | null
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          id: number
+          user_id: number
+          role_id: number
+          assigned_at: string | null
+        }
+        Insert: {
+          id?: number
+          user_id: number
+          role_id: number
+          assigned_at?: string | null
+        }
+        Update: {
+          id?: number
+          user_id?: number
+          role_id?: number
+          assigned_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_roles_role_id_fkey"
+            columns: ["role_id"]
+            isOneToOne: false
+            referencedRelation: "roles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "user_roles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       users: {
         Row: {
           created_at: string | null

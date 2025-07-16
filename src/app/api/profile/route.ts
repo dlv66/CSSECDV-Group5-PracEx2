@@ -7,12 +7,14 @@ import {
     generateToken,
     setAuthCookie,
 } from "@/lib/utils/jwt";
+import { withPermissionAuthorization } from "@/lib/middleware/authorization";
 
 // GET - Retrieve user profile
 export async function GET() {
-    const user = await getUserFromToken();
-    if (!user) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    // Check authorization: edit_profile permission required
+    const { user, error: authError } = await withPermissionAuthorization('edit_profile');
+    if (authError) {
+        return authError;
     }
 
     const supabase = await createClient();
@@ -38,9 +40,10 @@ export async function GET() {
 
 // PUT - Update user profile
 export async function PUT(req: Request) {
-    const user = await getUserFromToken();
-    if (!user) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    // Check authorization: edit_profile permission required
+    const { user, error: authError } = await withPermissionAuthorization('edit_profile');
+    if (authError) {
+        return authError;
     }
 
     const { displayName, email, username } = await req.json();

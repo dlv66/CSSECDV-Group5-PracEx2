@@ -3,12 +3,14 @@ import { createClient } from "@/lib/utils/supabase/server";
 import { validateEmailUniqueness } from "@/lib/validation/emailUniqueness";
 import { validateUsernameDetailed } from "@/lib/validation/username";
 import { getUserFromToken } from "@/lib/utils/jwt";
+import { withRoleAuthorization, withPermissionAuthorization } from "@/lib/middleware/authorization";
 
 // GET - Retrieve all users with their roles
 export async function GET() {
-    const user = await getUserFromToken();
-    if (!user) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    // Check authorization: admin OR manager roles required
+    const { user, error: authError } = await withRoleAuthorization(['admin', 'manager']);
+    if (authError) {
+        return authError;
     }
 
     const supabase = await createClient();
@@ -61,9 +63,10 @@ export async function GET() {
 
 // PUT - Update user information
 export async function PUT(req: Request) {
-    const user = await getUserFromToken();
-    if (!user) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    // Check authorization: admin OR manager roles required
+    const { user, error: authError } = await withRoleAuthorization(['admin', 'manager']);
+    if (authError) {
+        return authError;
     }
 
     const { userId, displayName, email, username, roleIds } = await req.json();
@@ -209,5 +212,71 @@ export async function PUT(req: Request) {
             createdAt: data.created_at,
             lastLogin: data.last_login,
         },
+    });
+}
+
+// DELETE - Delete a user (admin only with layered security)
+export async function DELETE(req: Request) {
+    // Layer 1: Role-based authorization (admin only)
+    const { user, error: authError } = await withRoleAuthorization(['admin']);
+    if (authError) {
+        return authError;
+    }
+
+    // Layer 2: Permission-based authorization (manage_users permission)
+    const { user: permUser, error: permError } = await withPermissionAuthorization('manage_users');
+    if (permError) {
+        return permError;
+    }
+
+    const { searchParams } = new URL(req.url);
+    const userId = searchParams.get('userId');
+
+    if (!userId) {
+        return NextResponse.json(
+            { error: "User ID is required" },
+            { status: 400 },
+        );
+    }
+
+    // Layer 3: Prevent self-deletion
+    if (parseInt(userId) === parseInt(user.id)) {
+        return NextResponse.json(
+            { error: "Cannot delete your own account" },
+            { status: 403 },
+        );
+    }
+
+    const supabase = await createClient();
+
+    // Layer 4: Check if user exists before deletion
+    const { data: targetUser, error: fetchError } = await supabase
+        .from("users")
+        .select("id, username")
+        .eq("id", userId)
+        .single();
+
+    if (fetchError || !targetUser) {
+        return NextResponse.json(
+            { error: "User not found" },
+            { status: 404 },
+        );
+    }
+
+    // Delete user (this will cascade delete user_roles due to foreign key constraints)
+    const { error: deleteError } = await supabase
+        .from("users")
+        .delete()
+        .eq("id", userId);
+
+    if (deleteError) {
+        return NextResponse.json(
+            { error: "Failed to delete user" },
+            { status: 500 },
+        );
+    }
+
+    return NextResponse.json({
+        message: `User ${targetUser.username} deleted successfully`,
     });
 }

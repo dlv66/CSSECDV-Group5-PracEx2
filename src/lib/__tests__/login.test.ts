@@ -115,7 +115,7 @@ describe("/api/login", () => {
             expect(data.message).toBe("Login successful");
             expect(mockSupabaseClient.from).toHaveBeenCalledWith("users");
             expect(mockSupabaseClient.select).toHaveBeenCalledWith(
-                "id, username, email, password_hash",
+                "id, username, email, display_name, password_hash",
             );
             expect(mockSupabaseClient.eq).toHaveBeenCalledWith(
                 "email",
@@ -126,8 +126,13 @@ describe("/api/login", () => {
                 "hashedpassword",
             );
             expect(mockJwtSign).toHaveBeenCalledWith(
-                { id: "123", username: "testuser", email: "test@example.com" },
-                "test-secret",
+                { 
+                    id: "123", 
+                    username: "testuser", 
+                    email: "test@example.com", 
+                    displayName: undefined 
+                },
+                "3076e6b41e660e0f50c1994a842c7667203d616d89654028dd4fbf89b9605090",
                 { expiresIn: "7d" },
             );
         });

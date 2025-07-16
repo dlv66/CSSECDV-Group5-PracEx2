@@ -45,6 +45,15 @@ export default function UsersPage() {
 
             const response = await fetch("/api/admin/users");
             if (!response.ok) {
+                if (response.status === 401) {
+                    // User not authenticated, redirect to login
+                    window.location.href = "/login";
+                    return;
+                } else if (response.status === 403) {
+                    // User doesn't have admin/manager permissions
+                    window.location.href = "/dashboard";
+                    return;
+                }
                 const errorData = await response.json().catch(() => ({}));
                 throw new Error(
                     errorData.error ||
