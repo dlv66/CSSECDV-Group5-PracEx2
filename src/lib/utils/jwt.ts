@@ -67,7 +67,7 @@ export function setAuthCookie(response: NextResponse, token: string): void {
     response.cookies.set("auth_token", token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
+        sameSite: "strict",
         path: "/",
         maxAge: 60 * 60 * 24 * 7, // 7 days
     });
@@ -80,7 +80,7 @@ export function clearAuthCookie(response: NextResponse): void {
     response.cookies.set("auth_token", "", {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
+        sameSite: "strict",
         path: "/",
         maxAge: 0,
     });
