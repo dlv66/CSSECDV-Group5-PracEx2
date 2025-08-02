@@ -253,7 +253,7 @@ describe("/api/login", () => {
             const response = await POST(request);
             const cookies = response.headers.get("set-cookie");
 
-            expect(cookies).toContain("auth_token=mock-jwt-token");
+            expect(cookies).toContain("id=mock-jwt-token");
             expect(cookies).toContain("HttpOnly");
             expect(cookies).toContain("Path=/");
         });

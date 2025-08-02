@@ -13,7 +13,7 @@ jest.mock("next/server", () => ({
             headers: {
                 get: jest.fn((name) => {
                     if (name === "set-cookie") {
-                        return "auth_token=mock-jwt-token; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=604800";
+                        return "id=mock-jwt-token; HttpOnly; Secure; SameSite=Lax; Path=/; Max-Age=604800";
                     }
                     return null;
                 }),

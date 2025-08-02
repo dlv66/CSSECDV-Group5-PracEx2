@@ -19,7 +19,7 @@ export interface JwtPayload {
  */
 export async function getUserFromToken(): Promise<JwtPayload | null> {
     const cookieStore = await cookies();
-    const token = cookieStore.get("auth_token")?.value;
+    const token = cookieStore.get("id")?.value;
 
     if (!token) return null;
 
@@ -64,12 +64,12 @@ export function generateToken(user: {
  * Set auth token cookie on a response
  */
 export function setAuthCookie(response: NextResponse, token: string): void {
-    response.cookies.set("auth_token", token, {
+    response.cookies.set("id", token, {
         httpOnly: true,
-        secure: true, //process.env.NODE_ENV === "production",
+        secure: process.env.NODE_ENV === "production",
         sameSite: "strict",
         path: "/",
-        maxAge: 60 * 60 * 24 * 7, // 7 days
+        maxAge: 60, // 1 minute
     });
 }
 
@@ -77,9 +77,9 @@ export function setAuthCookie(response: NextResponse, token: string): void {
  * Clear auth token cookie (for logout)
  */
 export function clearAuthCookie(response: NextResponse): void {
-    response.cookies.set("auth_token", "", {
+    response.cookies.set("id", "", {
         httpOnly: true,
-        secure: true, //process.env.NODE_ENV === "production",
+        secure: process.env.NODE_ENV === "production",
         sameSite: "strict",
         path: "/",
         maxAge: 0,

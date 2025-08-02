@@ -33,7 +33,7 @@ function escapeHtml(text: string): string {
 
 export default async function DashboardPage() {
     const cookieStore = await cookies();
-    const token = cookieStore.get("auth_token")?.value;
+    const token = cookieStore.get("id")?.value;
     let user: JwtPayload | null = null;
     if (token) {
         try {
