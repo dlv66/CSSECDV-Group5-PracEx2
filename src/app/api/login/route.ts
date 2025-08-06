@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/utils/supabase/server";
 import { compare } from "bcryptjs";
-import { generateToken, setAuthCookie } from "@/lib/utils/jwt";
+import { createSessionToken, setSessionCookie } from "@/lib/utils/session";
 
 export async function POST(req: Request) {
     const { usernameOrEmail, password } = await req.json();
@@ -52,16 +52,16 @@ export async function POST(req: Request) {
         .update({ last_login: new Date().toISOString() })
         .eq("id", user.id);
 
-    // Generate JWT
-    const token = generateToken({
-        id: user.id,
+    // Create session token
+    const sessionToken = createSessionToken({
+        id: user.id.toString(),
         username: user.username,
         email: user.email,
-        displayName: user.display_name,
+        displayName: user.display_name || user.username,
     });
 
-    // Set HTTP-only cookie
+    // Set secure session cookie
     const response = NextResponse.json({ message: "Login successful" });
-    setAuthCookie(response, token);
+    setSessionCookie(response, sessionToken);
     return response;
 }

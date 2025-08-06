@@ -1,16 +1,12 @@
 import { cookies } from "next/headers";
-import jwt from "jsonwebtoken";
 import { redirect } from "next/navigation";
+import { getUserFromSession } from "@/lib/utils/session";
 
-const JWT_SECRET = process.env.JWT_SECRET || "dev_secret";
-
-interface JwtPayload {
+interface UserData {
     id: string;
     username: string;
     email: string;
     displayName?: string;
-    iat?: number;
-    exp?: number;
 }
 
 /**
@@ -34,22 +30,12 @@ function escapeHtml(text: string): string {
 export default async function DashboardPage() {
     const cookieStore = await cookies();
     const token = cookieStore.get("id")?.value;
-    let user: JwtPayload | null = null;
-    if (token) {
-        try {
-            const payload = jwt.verify(token, JWT_SECRET);
-            if (
-                typeof payload === "object" &&
-                "username" in payload &&
-                "email" in payload &&
-                "id" in payload
-            ) {
-                user = payload as JwtPayload;
-            }
-        } catch {
-            // Invalid token
-        }
+
+    if (!token) {
+        redirect("/login");
     }
+
+    const user = getUserFromSession(token);
     if (!user) {
         redirect("/login");
     }

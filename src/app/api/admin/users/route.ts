@@ -1,16 +1,30 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/utils/supabase/server";
-import { validateEmailUniqueness } from "@/lib/validation/emailUniqueness";
-import { validateUsernameDetailed } from "@/lib/validation/username";
-import { getUserFromToken } from "@/lib/utils/jwt";
-import { withRoleAuthorization, withPermissionAuthorization } from "@/lib/middleware/authorization";
+import { getUserFromSession } from "@/lib/utils/session";
+import { userHasPermission } from "@/lib/roles/permission";
 
-// GET - Retrieve all users with their roles
+// GET - Retrieve all users (Admin/Manager only)
 export async function GET() {
-    // Check authorization: admin OR manager roles required
-    const { user, error: authError } = await withRoleAuthorization(['admin', 'manager']);
-    if (authError) {
-        return authError;
+    const { cookies } = await import("next/headers");
+    const cookieStore = await cookies();
+    const token = cookieStore.get("id")?.value;
+    if (!token) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const user = getUserFromSession(token);
+    if (!user) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Check if user has admin or manager permissions
+    const hasAdminPermission = await userHasPermission(user.id, "admin_access");
+    const hasManagerPermission = await userHasPermission(
+        user.id,
+        "manage_users",
+    );
+
+    if (!hasAdminPermission && !hasManagerPermission) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const supabase = await createClient();
@@ -23,16 +37,18 @@ export async function GET() {
             id,
             username,
             email,
-            display_name,
-            created_at,
-            last_login,
-            user_roles(
-                role_id,
-                roles(name)
+            displayName,
+            createdAt,
+            lastLogin,
+            user_roles (
+                roles (
+                    id,
+                    name
+                )
             )
         `,
         )
-        .order("created_at", { ascending: false });
+        .order("createdAt", { ascending: false });
 
     if (usersError) {
         return NextResponse.json(
@@ -41,35 +57,47 @@ export async function GET() {
         );
     }
 
-    // Transform the data to a more usable format
-    const transformedUsers = users?.map((user: any) => ({
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        displayName: user.display_name,
-        createdAt: user.created_at,
-        lastLogin: user.last_login,
-        roles:
-            user.user_roles?.map((ur: any) => ({
-                id: ur.role_id,
-                name: ur.roles.name,
-            })) || [],
-    }));
+    // Transform the data to match the expected format
+    const transformedUsers =
+        users?.map((user) => ({
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            displayName: user.displayName,
+            createdAt: user.createdAt,
+            lastLogin: user.lastLogin,
+            roles: user.user_roles?.map((ur) => ur.roles) || [],
+        })) || [];
 
-    return NextResponse.json({
-        users: transformedUsers || [],
-    });
+    return NextResponse.json({ users: transformedUsers });
 }
 
-// PUT - Update user information
-export async function PUT(req: Request) {
-    // Check authorization: admin OR manager roles required
-    const { user, error: authError } = await withRoleAuthorization(['admin', 'manager']);
-    if (authError) {
-        return authError;
+// PUT - Update user information (Admin/Manager only)
+export async function PUT(request: NextRequest) {
+    const { cookies } = await import("next/headers");
+    const cookieStore = await cookies();
+    const token = cookieStore.get("id")?.value;
+    if (!token) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const user = getUserFromSession(token);
+    if (!user) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { userId, displayName, email, username, roleIds } = await req.json();
+    // Check if user has admin or manager permissions
+    const hasAdminPermission = await userHasPermission(user.id, "admin_access");
+    const hasManagerPermission = await userHasPermission(
+        user.id,
+        "manage_users",
+    );
+
+    if (!hasAdminPermission && !hasManagerPermission) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const body = await request.json();
+    const { userId, displayName, email, username, roleIds } = body;
 
     if (!userId) {
         return NextResponse.json(
@@ -80,47 +108,33 @@ export async function PUT(req: Request) {
 
     const supabase = await createClient();
 
-    // Validate email if provided
+    // Validate email uniqueness (if email is being updated)
     if (email) {
-        const emailValidation = await validateEmailUniqueness(email, userId);
-        if (!emailValidation.isUnique) {
+        const { data: existingUser } = await supabase
+            .from("users")
+            .select("id")
+            .eq("email", email)
+            .neq("id", userId)
+            .single();
+
+        if (existingUser) {
             return NextResponse.json(
-                { error: emailValidation.error || "Email validation failed" },
+                { error: "Email already exists" },
                 { status: 400 },
             );
         }
     }
 
-    // Validate username if provided
+    // Validate username uniqueness (if username is being updated)
     if (username) {
-        const usernameValidation = validateUsernameDetailed(username);
-        if (!usernameValidation.isValid) {
-            return NextResponse.json(
-                {
-                    error:
-                        usernameValidation.error ||
-                        "Username validation failed",
-                },
-                { status: 400 },
-            );
-        }
+        const { data: existingUser } = await supabase
+            .from("users")
+            .select("id")
+            .eq("username", username)
+            .neq("id", userId)
+            .single();
 
-        // Check if username already exists in database
-        const { data: existingUsername, error: usernameDbError } =
-            await supabase
-                .from("users")
-                .select("id")
-                .ilike("username", username)
-                .neq("id", userId)
-                .maybeSingle();
-
-        if (usernameDbError) {
-            return NextResponse.json(
-                { error: "Database error (username check)" },
-                { status: 500 },
-            );
-        }
-        if (existingUsername) {
+        if (existingUser) {
             return NextResponse.json(
                 { error: "Username already exists" },
                 { status: 400 },
@@ -128,155 +142,93 @@ export async function PUT(req: Request) {
         }
     }
 
-    // Prepare update data
+    // Update user information
     const updateData: {
-        updated_at: string;
-        display_name?: string;
+        displayName?: string;
         email?: string;
         username?: string;
-    } = {
-        updated_at: new Date().toISOString(),
-    };
+    } = {};
+    if (displayName !== undefined) updateData.displayName = displayName;
+    if (email !== undefined) updateData.email = email;
+    if (username !== undefined) updateData.username = username;
 
-    if (displayName !== undefined) {
-        updateData.display_name = displayName;
-    }
-
-    if (email !== undefined) {
-        updateData.email = email.toLowerCase();
-    }
-
-    if (username !== undefined) {
-        updateData.username = username;
-    }
-
-    const { data, error } = await supabase
+    const { error: updateError } = await supabase
         .from("users")
         .update(updateData)
         .eq("id", userId)
-        .select("id, username, email, display_name, created_at, last_login")
+        .select()
         .single();
 
-    if (error) {
+    if (updateError) {
         return NextResponse.json(
             { error: "Failed to update user" },
             { status: 500 },
         );
     }
 
-    // --- Role update logic ---
-    if (Array.isArray(roleIds)) {
-        // Remove all existing roles for the user
-        const { error: deleteError } = await supabase
-            .from("user_roles")
-            .delete()
-            .eq("user_id", userId);
+    // Update user roles if roleIds is provided
+    if (roleIds !== undefined) {
+        // First, remove all existing roles for this user
+        await supabase.from("user_roles").delete().eq("user_id", userId);
 
-        if (deleteError) {
-            console.error("Failed to remove existing roles:", deleteError);
-            return NextResponse.json(
-                { error: "Failed to remove existing roles" },
-                { status: 500 },
-            );
-        }
-
-        // Assign new roles
+        // Then, add the new roles
         if (roleIds.length > 0) {
-            const newRoles = roleIds.map((roleId: number) => ({
+            const roleInserts = roleIds.map((roleId: number) => ({
                 user_id: userId,
                 role_id: roleId,
-                assigned_at: new Date().toISOString(),
             }));
 
-            const { error: insertError } = await supabase
+            const { error: roleError } = await supabase
                 .from("user_roles")
-                .insert(newRoles);
+                .insert(roleInserts);
 
-            if (insertError) {
-                console.error("Failed to assign new roles:", insertError);
+            if (roleError) {
                 return NextResponse.json(
-                    { error: "Failed to assign new roles" },
+                    { error: "Failed to update roles" },
                     { status: 500 },
                 );
             }
         }
     }
 
-    return NextResponse.json({
-        message: "User updated successfully",
-        user: {
-            id: data.id,
-            username: data.username,
-            email: data.email,
-            displayName: data.display_name,
-            createdAt: data.created_at,
-            lastLogin: data.last_login,
-        },
-    });
-}
-
-// DELETE - Delete a user (admin only with layered security)
-export async function DELETE(req: Request) {
-    // Layer 1: Role-based authorization (admin only)
-    const { user, error: authError } = await withRoleAuthorization(['admin']);
-    if (authError) {
-        return authError;
-    }
-
-    // Layer 2: Permission-based authorization (manage_users permission)
-    const { user: permUser, error: permError } = await withPermissionAuthorization('manage_users');
-    if (permError) {
-        return permError;
-    }
-
-    const { searchParams } = new URL(req.url);
-    const userId = searchParams.get('userId');
-
-    if (!userId) {
-        return NextResponse.json(
-            { error: "User ID is required" },
-            { status: 400 },
-        );
-    }
-
-    // Layer 3: Prevent self-deletion
-    if (parseInt(userId) === parseInt(user.id)) {
-        return NextResponse.json(
-            { error: "Cannot delete your own account" },
-            { status: 403 },
-        );
-    }
-
-    const supabase = await createClient();
-
-    // Layer 4: Check if user exists before deletion
-    const { data: targetUser, error: fetchError } = await supabase
+    // Get updated user with roles
+    const { data: updatedUserWithRoles, error: fetchError } = await supabase
         .from("users")
-        .select("id, username")
+        .select(
+            `
+            id,
+            username,
+            email,
+            displayName,
+            createdAt,
+            lastLogin,
+            user_roles (
+                roles (
+                    id,
+                    name
+                )
+            )
+        `,
+        )
         .eq("id", userId)
         .single();
 
-    if (fetchError || !targetUser) {
+    if (fetchError) {
         return NextResponse.json(
-            { error: "User not found" },
-            { status: 404 },
-        );
-    }
-
-    // Delete user (this will cascade delete user_roles due to foreign key constraints)
-    const { error: deleteError } = await supabase
-        .from("users")
-        .delete()
-        .eq("id", userId);
-
-    if (deleteError) {
-        return NextResponse.json(
-            { error: "Failed to delete user" },
+            { error: "Failed to fetch updated user" },
             { status: 500 },
         );
     }
 
-    return NextResponse.json({
-        message: `User ${targetUser.username} deleted successfully`,
-    });
+    const result = {
+        id: updatedUserWithRoles.id,
+        username: updatedUserWithRoles.username,
+        email: updatedUserWithRoles.email,
+        displayName: updatedUserWithRoles.displayName,
+        createdAt: updatedUserWithRoles.createdAt,
+        lastLogin: updatedUserWithRoles.lastLogin,
+        roles: updatedUserWithRoles.user_roles?.map((ur) => ur.roles) || [],
+    };
+
+    return NextResponse.json({ user: result });
 }

@@ -68,8 +68,13 @@ export default function LoginPage() {
                 return;
             }
 
+            console.log("Login successful, redirecting to dashboard...");
             setIsLoading(false);
-            router.push("/dashboard");
+
+            // Add a small delay to ensure cookie is set
+            setTimeout(() => {
+                router.push("/dashboard");
+            }, 100);
         } catch {
             setErrors({ api: "Something went wrong. Please try again." });
             setIsLoading(false);

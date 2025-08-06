@@ -3,16 +3,30 @@ import { createClient } from "@/lib/utils/supabase/server";
 import { validateEmailUniqueness } from "@/lib/validation/emailUniqueness";
 import { validateUsernameDetailed } from "@/lib/validation/username";
 import {
-    getUserFromToken,
-    generateToken,
-    setAuthCookie,
-} from "@/lib/utils/jwt";
+    getUserFromSession,
+    createSessionToken,
+    setSessionCookie,
+} from "@/lib/utils/session";
 import { withPermissionAuthorization } from "@/lib/middleware/authorization";
+import { cookies } from "next/headers";
 
 // GET - Retrieve user profile
 export async function GET() {
+    const cookieStore = await cookies();
+    const token = cookieStore.get("id")?.value;
+    if (!token) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const user = getUserFromSession(token);
+    if (!user) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     // Check authorization: edit_profile permission required
-    const { user, error: authError } = await withPermissionAuthorization('edit_profile');
+    const { error: authError } = await withPermissionAuthorization(
+        token,
+        "edit_profile",
+    );
     if (authError) {
         return authError;
     }
@@ -40,8 +54,21 @@ export async function GET() {
 
 // PUT - Update user profile
 export async function PUT(req: Request) {
+    const cookieStore = await cookies();
+    const token = cookieStore.get("id")?.value;
+    if (!token) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    const user = getUserFromSession(token);
+    if (!user) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     // Check authorization: edit_profile permission required
-    const { user, error: authError } = await withPermissionAuthorization('edit_profile');
+    const { error: authError } = await withPermissionAuthorization(
+        token,
+        "edit_profile",
+    );
     if (authError) {
         return authError;
     }
@@ -137,14 +164,6 @@ export async function PUT(req: Request) {
         );
     }
 
-    // Generate new JWT with updated information
-    const newToken = generateToken({
-        id: data.id,
-        username: data.username,
-        email: data.email,
-        displayName: data.display_name,
-    });
-
     const response = NextResponse.json({
         message: "Profile updated successfully",
         user: {
@@ -157,8 +176,14 @@ export async function PUT(req: Request) {
         },
     });
 
-    // Update the auth token cookie
-    setAuthCookie(response, newToken);
+    // Generate new session token with updated information
+    const newToken = createSessionToken({
+        id: data.id,
+        username: data.username,
+        email: data.email,
+        displayName: data.display_name,
+    });
+    setSessionCookie(response, newToken);
 
     return response;
 }
