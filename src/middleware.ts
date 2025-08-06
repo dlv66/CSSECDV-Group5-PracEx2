@@ -35,7 +35,7 @@ export function middleware(request: NextRequest) {
 
     try {
         // Verify session token with activity renewal
-        const result = verifySessionTokenEdge(token);
+        const result = verifySessionTokenEdge(token, request);
 
         if (!result.valid) {
             // Invalid or expired token, clear cookie and redirect to login
