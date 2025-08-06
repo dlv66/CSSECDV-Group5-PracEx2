@@ -8,50 +8,7 @@ const ACTIVITY_RENEWAL_THRESHOLD = parseInt(
     process.env.ACTIVITY_RENEWAL_THRESHOLD || "300",
 ); // 5 minutes
 
-/**
- * Set global logout timestamp in a secure cookie
- * This invalidates ALL sessions created before this timestamp
- */
-export function setGlobalLogoutTimestamp(response: NextResponse): void {
-    const timestamp = Math.floor(Date.now() / 1000);
-    response.cookies.set("_s", timestamp.toString(), {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "strict",
-        path: "/",
-        maxAge: 24 * 60 * 60, // 24 hours
-    });
-}
-
-/**
- * Get global logout timestamp from cookie
- */
-export function getGlobalLogoutTimestamp(request: Request): number {
-    const cookieHeader = request.headers.get("cookie");
-    if (!cookieHeader) return 0;
-
-    const cookies = cookieHeader.split(";").reduce((acc, cookie) => {
-        const [key, value] = cookie.trim().split("=");
-        acc[key] = value;
-        return acc;
-    }, {} as Record<string, string>);
-
-    const logoutTimestamp = cookies["_s"];
-    return logoutTimestamp ? parseInt(logoutTimestamp, 10) : 0;
-}
-
-/**
- * Check if session was created before global logout
- */
-export function isSessionInvalidatedByLogout(
-    sessionCreatedAt: number,
-    request: Request,
-): boolean {
-    const logoutTimestamp = getGlobalLogoutTimestamp(request);
-    return sessionCreatedAt < logoutTimestamp;
-}
-
-// Excellent session management
+// Excellent session management without database tables
 export interface SessionData {
     id: string;
     username: string;
@@ -142,10 +99,7 @@ export function verifySessionToken(token: string): {
 /**
  * Verify session token for Edge Runtime
  */
-export function verifySessionTokenEdge(
-    token: string,
-    request?: Request,
-): {
+export function verifySessionTokenEdge(token: string): {
     valid: boolean;
     data?: SessionData;
     needsRenewal: boolean;
@@ -167,42 +121,7 @@ export function verifySessionTokenEdge(
             parts[1].replace(/-/g, "+").replace(/_/g, "/"),
         );
         const payload = JSON.parse(decodedPayload);
-
         const now = Math.floor(Date.now() / 1000);
-
-        if (
-            !payload.sessionId ||
-            !payload.iat ||
-            !payload.exp ||
-            !payload.lastActivity
-        ) {
-            return {
-                valid: false,
-                needsRenewal: false,
-                error: "Invalid token structure",
-            };
-        }
-
-        // Additional security: Check if token was created recently enough
-        // This prevents very old tokens from working even if not expired
-        const tokenAge = now - payload.iat;
-        const maxTokenAge = 24 * 60 * 60; // 24 hours in seconds
-        if (tokenAge > maxTokenAge) {
-            return {
-                valid: false,
-                needsRenewal: false,
-                error: "Token too old",
-            };
-        }
-
-        // Check if session was created before global logout
-        if (request && isSessionInvalidatedByLogout(payload.iat, request)) {
-            return {
-                valid: false,
-                needsRenewal: false,
-                error: "Session has been logged out",
-            };
-        }
 
         // Check if token is expired
         if (payload.exp && now >= payload.exp) {
